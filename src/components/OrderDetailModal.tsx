@@ -33,15 +33,16 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
           scale: 3,
           useCORS: true,
           logging: false,
-          width: printRef.current.offsetWidth,
-          height: printRef.current.offsetHeight,
-          windowWidth: printRef.current.scrollWidth,
-          windowHeight: printRef.current.scrollHeight,
+          width: 450, // Fixed width capture
           onclone: (clonedDoc) => {
             const element = clonedDoc.getElementById("print-area");
             if (element) {
+              element.style.width = "450px";
               element.style.padding = "40px";
-              element.style.width = "450px"; // Fixed width for consistent output
+              element.style.margin = "0";
+              element.style.borderRadius = "0";
+              element.style.border = "none";
+              element.style.boxShadow = "none";
             }
           },
         });
@@ -63,15 +64,16 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
           scale: 3,
           useCORS: true,
           logging: false,
-          width: printRef.current.offsetWidth,
-          height: printRef.current.offsetHeight,
-          windowWidth: printRef.current.scrollWidth,
-          windowHeight: printRef.current.scrollHeight,
+          width: 450, // Fixed width capture
           onclone: (clonedDoc) => {
             const element = clonedDoc.getElementById("print-area");
             if (element) {
-              element.style.padding = "40px";
               element.style.width = "450px";
+              element.style.padding = "40px";
+              element.style.margin = "0";
+              element.style.borderRadius = "0";
+              element.style.border = "none";
+              element.style.boxShadow = "none";
             }
           },
         });
