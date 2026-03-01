@@ -232,10 +232,8 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
                   onChange={(e) => setDeliveryType(e.target.value)}
                   className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none appearance-none font-bold text-gray-700 transition-all"
                 >
-                  <option value="Manual">Manual (JNT/SiCepat/dll)</option>
+                  <option value="Manual">Manual</option>
                   <option value="Shopee">Shopee</option>
-                  <option value="TikTok">TikTok</option>
-                  <option value="Lazada">Lazada</option>
                 </select>
               </div>
             </div>
@@ -260,9 +258,15 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <label className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer ${isShippingPaid ? 'bg-blue-50 border-blue-500 shadow-sm' : 'bg-gray-50 border-transparent hover:border-gray-200'}`}>
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${isShippingPaid ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
-                {isShippingPaid && <div className="w-2 h-2 bg-white rounded-full" />}
+            <label
+              className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer ${isShippingPaid ? "bg-blue-50 border-blue-500 shadow-sm" : "bg-gray-50 border-transparent hover:border-gray-200"}`}
+            >
+              <div
+                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${isShippingPaid ? "bg-blue-600 border-blue-600" : "bg-white border-gray-300"}`}
+              >
+                {isShippingPaid && (
+                  <div className="w-2 h-2 bg-white rounded-full" />
+                )}
               </div>
               <input
                 type="checkbox"
@@ -270,11 +274,19 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
                 onChange={(e) => setIsShippingPaid(e.target.checked)}
                 className="hidden"
               />
-              <span className="text-sm font-bold text-gray-700">Ongkir Sudah Bayar</span>
+              <span className="text-sm font-bold text-gray-700">
+                Ongkir Sudah Bayar
+              </span>
             </label>
-            <label className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer ${isPackingFeeApplied ? 'bg-blue-50 border-blue-500 shadow-sm' : 'bg-gray-50 border-transparent hover:border-gray-200'}`}>
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${isPackingFeeApplied ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
-                {isPackingFeeApplied && <div className="w-2 h-2 bg-white rounded-full" />}
+            <label
+              className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer ${isPackingFeeApplied ? "bg-blue-50 border-blue-500 shadow-sm" : "bg-gray-50 border-transparent hover:border-gray-200"}`}
+            >
+              <div
+                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${isPackingFeeApplied ? "bg-blue-600 border-blue-600" : "bg-white border-gray-300"}`}
+              >
+                {isPackingFeeApplied && (
+                  <div className="w-2 h-2 bg-white rounded-full" />
+                )}
               </div>
               <input
                 type="checkbox"
@@ -282,7 +294,9 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
                 onChange={(e) => setIsPackingFeeApplied(e.target.checked)}
                 className="hidden"
               />
-              <span className="text-sm font-bold text-gray-700">Biaya Packing (2rb)</span>
+              <span className="text-sm font-bold text-gray-700">
+                Biaya Packing (2rb)
+              </span>
             </label>
           </div>
 
@@ -301,7 +315,10 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
             </div>
             <div className="space-y-3">
               {items.map((item) => (
-                <div key={item.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-3">
+                <div
+                  key={item.id}
+                  className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-3"
+                >
                   <div className="flex gap-2">
                     <div className="flex-1 relative">
                       <input
@@ -309,7 +326,11 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
                         placeholder="Judul Buku"
                         value={item.description}
                         onChange={(e) =>
-                          handleUpdateItem(item.id, "description", e.target.value)
+                          handleUpdateItem(
+                            item.id,
+                            "description",
+                            e.target.value,
+                          )
                         }
                         className="w-full px-4 py-2.5 bg-white border-none rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold"
                       />
@@ -356,15 +377,17 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
             type="submit"
             disabled={loading}
             onClick={(e) => {
-              const form = (e.target as HTMLElement).closest('form');
+              const form = (e.target as HTMLElement).closest("form");
               if (form) form.requestSubmit();
             }}
             className="w-full py-4 bg-blue-600 text-white font-black uppercase tracking-widest rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98]"
           >
             {loading ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : initialData ? (
+              "Simpan Perubahan"
             ) : (
-              initialData ? "Simpan Perubahan" : "Buat Order"
+              "Buat Order"
             )}
           </button>
         </div>
@@ -406,8 +429,12 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
                     {item.book_name}
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-400 font-mono">Stok: {item.stock}</span>
-                    <span className="text-sm font-black text-blue-600">Rp {(item.sell_price || item.price).toLocaleString()}</span>
+                    <span className="text-xs text-gray-400 font-mono">
+                      Stok: {item.stock}
+                    </span>
+                    <span className="text-sm font-black text-blue-600">
+                      Rp {(item.sell_price || item.price).toLocaleString()}
+                    </span>
                   </div>
                 </button>
               ))}
