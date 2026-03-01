@@ -97,14 +97,15 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
     id: string,
     field: keyof OrderItem,
     value: string | number,
+    isManualChange = true,
   ) => {
-    setItems(
-      items.map((item) =>
+    setItems((prevItems) =>
+      prevItems.map((item) =>
         item.id === id ? { ...item, [field]: value } : item,
       ),
     );
 
-    if (field === "description") {
+    if (field === "description" && isManualChange) {
       if (typeof value === "string" && value.length > 0) {
         setActiveSuggestionId(id);
       } else {
@@ -350,6 +351,12 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
                           if (item.description.length > 0)
                             setActiveSuggestionId(item.id);
                         }}
+                        onBlur={() => {
+                          // Beri jeda sedikit agar onClick saran sempat tereksekusi
+                          setTimeout(() => {
+                            setActiveSuggestionId(null);
+                          }, 200);
+                        }}
                         className="w-full px-4 py-2.5 bg-white border-none rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold text-black"
                       />
                       {activeSuggestionId === item.id &&
@@ -367,21 +374,27 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
                                   key={stock.id}
                                   type="button"
                                   className="w-full px-4 py-3 text-left hover:bg-blue-50 text-sm text-black font-medium border-b border-gray-50 last:border-none transition-colors"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault(); // Mencegah onBlur input sebelum onClick selesai
+                                  }}
                                   onClick={() => {
                                     handleUpdateItem(
                                       item.id,
                                       "description",
                                       stock.book_name,
+                                      false,
                                     );
                                     handleUpdateItem(
                                       item.id,
                                       "price",
                                       stock.sell_price || stock.price,
+                                      false,
                                     );
                                     handleUpdateItem(
                                       item.id,
                                       "stockId",
                                       stock.id,
+                                      false,
                                     );
                                     setActiveSuggestionId(null);
                                   }}
