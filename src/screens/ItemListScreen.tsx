@@ -99,9 +99,15 @@ const ItemListScreen: React.FC = () => {
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
-      const matchesSearch =
-        order.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.last_4_digits_phone?.includes(searchQuery);
+      const query = searchQuery.toLowerCase();
+      
+      const matchesName = order.name?.toLowerCase().includes(query);
+      const matchesPhone = order.last_4_digits_phone?.includes(query);
+      const matchesItems = order.orders?.some(item => 
+        item.description?.toLowerCase().includes(query)
+      );
+
+      const matchesSearch = matchesName || matchesPhone || matchesItems;
 
       const matchesStatus =
         statusFilter === "all" || order.status === statusFilter;
