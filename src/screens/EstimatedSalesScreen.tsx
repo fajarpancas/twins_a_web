@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import FirestoreService, { type StockOpnameDocument } from '../services/FirestoreService';
 import { 
   TrendingUp, 

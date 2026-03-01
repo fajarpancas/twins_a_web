@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import FirestoreService, {
   type OrderDocument,
   type StockOpnameDocument,
@@ -147,7 +147,9 @@ const ProfitReportScreen = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Laporan Keuntungan</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+          Laporan Keuntungan
+        </h1>
         <div className="flex w-full sm:w-auto space-x-2 sm:space-x-3">
           <button
             onClick={exportToExcel}
@@ -276,22 +278,41 @@ const ProfitReportScreen = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-600">Tanggal</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-600">Customer</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-600">Buku</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-right">Jual</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-right">Beli</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-right">Profit</th>
+                  <th className="px-6 py-4 text-sm font-semibold text-gray-600">
+                    Tanggal
+                  </th>
+                  <th className="px-6 py-4 text-sm font-semibold text-gray-600">
+                    Customer
+                  </th>
+                  <th className="px-6 py-4 text-sm font-semibold text-gray-600">
+                    Buku
+                  </th>
+                  <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-right">
+                    Jual
+                  </th>
+                  <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-right">
+                    Beli
+                  </th>
+                  <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-right">
+                    Profit
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {profitItems.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                  <tr
+                    key={item.id}
+                    className="hover:bg-gray-50 transition-colors"
+                  >
                     <td className="px-6 py-4 text-sm text-gray-500">
                       {new Date(item.date).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 font-medium text-gray-900">{item.orderName}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{item.itemName}</td>
+                    <td className="px-6 py-4 font-medium text-gray-900">
+                      {item.orderName}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {item.itemName}
+                    </td>
                     <td className="px-6 py-4 text-right text-gray-900">
                       Rp {item.sellPrice.toLocaleString()}
                     </td>
@@ -314,17 +335,25 @@ const ProfitReportScreen = () => {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="font-bold text-gray-900">{item.orderName}</p>
-                    <p className="text-xs text-gray-500">{new Date(item.date).toLocaleDateString()}</p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(item.date).toLocaleDateString()}
+                    </p>
                   </div>
                   <p className="font-bold text-green-600">
                     +Rp {item.profit.toLocaleString()}
                   </p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                  <p className="text-sm font-medium text-gray-700">{item.itemName}</p>
+                  <p className="text-sm font-medium text-gray-700">
+                    {item.itemName}
+                  </p>
                   <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">Harga Jual: Rp {item.sellPrice.toLocaleString()}</span>
-                    <span className="text-gray-500">Harga Beli: Rp {item.buyPrice.toLocaleString()}</span>
+                    <span className="text-gray-500">
+                      Harga Jual: Rp {item.sellPrice.toLocaleString()}
+                    </span>
+                    <span className="text-gray-500">
+                      Harga Beli: Rp {item.buyPrice.toLocaleString()}
+                    </span>
                   </div>
                 </div>
               </div>
