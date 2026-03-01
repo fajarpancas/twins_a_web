@@ -35,10 +35,14 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
   const [isSelectionModalVisible, setSelectionModalVisible] = useState(false);
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeSuggestionId, setActiveSuggestionId] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     if (visible) {
       fetchStockItems();
+      setActiveSuggestionId(null);
       if (initialData) {
         setName(initialData.name);
         setPhone(initialData.last_4_digits_phone);
@@ -99,6 +103,14 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
         item.id === id ? { ...item, [field]: value } : item,
       ),
     );
+
+    if (field === "description") {
+      if (typeof value === "string" && value.length > 0) {
+        setActiveSuggestionId(id);
+      } else {
+        setActiveSuggestionId(null);
+      }
+    }
   };
 
   const handleOpenSelection = (itemId: string) => {
@@ -334,8 +346,61 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
                             e.target.value,
                           )
                         }
+                        onFocus={() => {
+                          if (item.description.length > 0)
+                            setActiveSuggestionId(item.id);
+                        }}
                         className="w-full px-4 py-2.5 bg-white border-none rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold text-black"
                       />
+                      {activeSuggestionId === item.id &&
+                        item.description.length > 0 && (
+                          <div className="absolute z-[80] top-full left-0 w-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl max-h-48 overflow-y-auto">
+                            {stockItems
+                              .filter((stock) =>
+                                stock.book_name
+                                  .toLowerCase()
+                                  .includes(item.description.toLowerCase()),
+                              )
+                              .slice(0, 5)
+                              .map((stock) => (
+                                <button
+                                  key={stock.id}
+                                  type="button"
+                                  className="w-full px-4 py-3 text-left hover:bg-blue-50 text-sm text-black font-medium border-b border-gray-50 last:border-none transition-colors"
+                                  onClick={() => {
+                                    handleUpdateItem(
+                                      item.id,
+                                      "description",
+                                      stock.book_name,
+                                    );
+                                    handleUpdateItem(
+                                      item.id,
+                                      "price",
+                                      stock.sell_price || stock.price,
+                                    );
+                                    handleUpdateItem(
+                                      item.id,
+                                      "stockId",
+                                      stock.id,
+                                    );
+                                    setActiveSuggestionId(null);
+                                  }}
+                                >
+                                  <div className="flex justify-between items-center">
+                                    <span className="truncate flex-1">
+                                      {stock.book_name}
+                                    </span>
+                                    <span className="text-xs text-blue-600 font-black ml-2 shrink-0">
+                                      Rp{" "}
+                                      {(
+                                        stock.sell_price || stock.price
+                                      ).toLocaleString()}
+                                    </span>
+                                  </div>
+                                </button>
+                              ))}
+                          </div>
+                        )}
                       <button
                         type="button"
                         onClick={() => handleOpenSelection(item.id)}
