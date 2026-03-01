@@ -209,18 +209,6 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
-              Alamat Pengiriman
-            </label>
-            <textarea
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Masukkan alamat lengkap..."
-              className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none min-h-[100px] transition-all"
-            />
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
@@ -256,6 +244,20 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
               </select>
             </div>
           </div>
+
+          {deliveryType === "Manual" && (
+            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
+                Alamat Pengiriman
+              </label>
+              <textarea
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Masukkan alamat lengkap..."
+                className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none min-h-[100px] transition-all"
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label
