@@ -189,6 +189,7 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
         </div>
 
         <form
+          id="order-form"
           onSubmit={handleSubmit}
           className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 sm:space-y-6"
         >
@@ -455,11 +456,8 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
         <div className="p-4 sm:p-6 border-t border-gray-100 bg-gray-50 shrink-0">
           <button
             type="submit"
+            form="order-form"
             disabled={loading}
-            onClick={(e) => {
-              const form = (e.target as HTMLElement).closest("form");
-              if (form) form.requestSubmit();
-            }}
             className="w-full py-4 bg-blue-600 text-white font-black uppercase tracking-widest rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98]"
           >
             {loading ? (
