@@ -334,7 +334,7 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
                             e.target.value,
                           )
                         }
-                        className="w-full px-4 py-2.5 bg-white border-none rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold"
+                        className="w-full px-4 py-2.5 bg-white border-none rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold text-black"
                       />
                       <button
                         type="button"
@@ -416,7 +416,7 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
                   placeholder="Cari buku..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                  className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm text-black font-medium"
                 />
               </div>
             </div>
