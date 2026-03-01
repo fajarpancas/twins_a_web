@@ -28,24 +28,34 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   const handleDownloadImage = async () => {
     if (printRef.current) {
       try {
-        const canvas = await html2canvas(printRef.current, {
+        // Create a hidden clone for capture to ensure fixed width and no cropping
+        const originalElement = printRef.current;
+        const clone = originalElement.cloneNode(true) as HTMLDivElement;
+
+        // Style the clone to be visible for capture but off-screen
+        clone.style.position = "fixed";
+        clone.style.left = "-9999px";
+        clone.style.top = "0";
+        clone.style.width = "500px"; // Set a stable width for capture
+        clone.style.height = "auto";
+        clone.style.padding = "40px";
+        clone.style.backgroundColor = "white";
+        clone.style.borderRadius = "0";
+        clone.style.border = "none";
+        clone.style.boxShadow = "none";
+
+        document.body.appendChild(clone);
+
+        const canvas = await html2canvas(clone, {
           backgroundColor: "#ffffff",
-          scale: 3,
+          scale: 2,
           useCORS: true,
           logging: false,
-          width: 450, // Fixed width capture
-          onclone: (clonedDoc) => {
-            const element = clonedDoc.getElementById("print-area");
-            if (element) {
-              element.style.width = "450px";
-              element.style.padding = "40px";
-              element.style.margin = "0";
-              element.style.borderRadius = "0";
-              element.style.border = "none";
-              element.style.boxShadow = "none";
-            }
-          },
+          width: 500,
         });
+
+        document.body.removeChild(clone);
+
         const link = document.createElement("a");
         link.download = `order-${order.name}.png`;
         link.href = canvas.toDataURL("image/png");
@@ -59,24 +69,33 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   const handleShare = async () => {
     if (printRef.current) {
       try {
-        const canvas = await html2canvas(printRef.current, {
+        // Create a hidden clone for capture
+        const originalElement = printRef.current;
+        const clone = originalElement.cloneNode(true) as HTMLDivElement;
+
+        clone.style.position = "fixed";
+        clone.style.left = "-9999px";
+        clone.style.top = "0";
+        clone.style.width = "500px";
+        clone.style.height = "auto";
+        clone.style.padding = "40px";
+        clone.style.backgroundColor = "white";
+        clone.style.borderRadius = "0";
+        clone.style.border = "none";
+        clone.style.boxShadow = "none";
+
+        document.body.appendChild(clone);
+
+        const canvas = await html2canvas(clone, {
           backgroundColor: "#ffffff",
-          scale: 3,
+          scale: 2,
           useCORS: true,
           logging: false,
-          width: 450, // Fixed width capture
-          onclone: (clonedDoc) => {
-            const element = clonedDoc.getElementById("print-area");
-            if (element) {
-              element.style.width = "450px";
-              element.style.padding = "40px";
-              element.style.margin = "0";
-              element.style.borderRadius = "0";
-              element.style.border = "none";
-              element.style.boxShadow = "none";
-            }
-          },
+          width: 500,
         });
+
+        document.body.removeChild(clone);
+
         const blob = await new Promise<Blob | null>((resolve) =>
           canvas.toBlob(resolve, "image/png"),
         );
