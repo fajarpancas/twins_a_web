@@ -67,7 +67,7 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
 
         const canvas = await html2canvas(clone, {
           backgroundColor: "#ffffff",
-          scale: 3,
+          scale: 2, // Reduced from 3 to 2 for better performance
           useCORS: true,
           logging: false,
           width: 500,
@@ -136,7 +136,7 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
 
         const canvas = await html2canvas(clone, {
           backgroundColor: "#ffffff",
-          scale: 3,
+          scale: 2, // Reduced from 3 to 2 for better performance
           useCORS: true,
           logging: false,
           width: 500,
