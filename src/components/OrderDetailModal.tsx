@@ -1,5 +1,5 @@
-import React, { useRef } from "react";
-import { X, Download, Share2 } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { X, Download, Share2, Loader2 } from "lucide-react";
 import html2canvas from "html2canvas";
 import { type OrderDocument } from "../services/FirestoreService";
 
@@ -15,6 +15,7 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   order,
 }) => {
   const printRef = useRef<HTMLDivElement>(null);
+  const [generating, setGenerating] = useState(false);
 
   if (!order || !visible) return null;
 
@@ -26,7 +27,11 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   const finalTotal = totalPrice + (order.unique_code || 0) + appliedPackingFee;
 
   const handleDownloadImage = async () => {
-    if (printRef.current) {
+    if (printRef.current && !generating) {
+      setGenerating(true);
+      // Small delay to let the UI update and show the loading indicator
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       try {
         // Create a hidden clone for capture to ensure fixed width and no cropping
         const originalElement = printRef.current;
@@ -44,14 +49,37 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
         clone.style.border = "none";
         clone.style.boxShadow = "none";
 
+        // Remove line-clamp for capture and adjust line-height
+        const descriptions = clone.querySelectorAll(".description-text");
+        descriptions.forEach((el) => {
+          const style = (el as HTMLElement).style;
+          style.display = "block";
+          style.webkitLineClamp = "unset";
+          style.setProperty("line-clamp", "unset");
+          style.overflow = "visible";
+          style.whiteSpace = "normal";
+          style.wordBreak = "break-word";
+          style.lineHeight = "1.6"; // Increased line-height for capture
+          style.paddingBottom = "4px"; // Extra space for descenders (g, j, p, y)
+        });
+
         document.body.appendChild(clone);
 
         const canvas = await html2canvas(clone, {
           backgroundColor: "#ffffff",
-          scale: 2,
+          scale: 3,
           useCORS: true,
           logging: false,
           width: 500,
+          windowWidth: 500,
+          onclone: (clonedDoc) => {
+            const el = clonedDoc.body.querySelector("#print-area");
+            if (el) {
+              (el as HTMLElement).style.width = "500px";
+              (el as HTMLElement).style.height = "auto";
+              (el as HTMLElement).style.overflow = "visible";
+            }
+          },
         });
 
         document.body.removeChild(clone);
@@ -62,12 +90,18 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
         link.click();
       } catch (err) {
         console.error("Error capturing image:", err);
+      } finally {
+        setGenerating(false);
       }
     }
   };
 
   const handleShare = async () => {
-    if (printRef.current) {
+    if (printRef.current && !generating) {
+      setGenerating(true);
+      // Small delay to let the UI update and show the loading indicator
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       try {
         // Create a hidden clone for capture
         const originalElement = printRef.current;
@@ -84,14 +118,37 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
         clone.style.border = "none";
         clone.style.boxShadow = "none";
 
+        // Remove line-clamp for capture and adjust line-height
+        const descriptions = clone.querySelectorAll(".description-text");
+        descriptions.forEach((el) => {
+          const style = (el as HTMLElement).style;
+          style.display = "block";
+          style.webkitLineClamp = "unset";
+          style.setProperty("line-clamp", "unset");
+          style.overflow = "visible";
+          style.whiteSpace = "normal";
+          style.wordBreak = "break-word";
+          style.lineHeight = "1.6"; // Increased line-height for capture
+          style.paddingBottom = "4px"; // Extra space for descenders (g, j, p, y)
+        });
+
         document.body.appendChild(clone);
 
         const canvas = await html2canvas(clone, {
           backgroundColor: "#ffffff",
-          scale: 2,
+          scale: 3,
           useCORS: true,
           logging: false,
           width: 500,
+          windowWidth: 500,
+          onclone: (clonedDoc) => {
+            const el = clonedDoc.body.querySelector("#print-area");
+            if (el) {
+              (el as HTMLElement).style.width = "500px";
+              (el as HTMLElement).style.height = "auto";
+              (el as HTMLElement).style.overflow = "visible";
+            }
+          },
         });
 
         document.body.removeChild(clone);
@@ -109,17 +166,39 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
             text: `Detail Pesanan ${order.name}`,
           });
         } else {
-          handleDownloadImage();
+          // Manual fallback if share is not available
+          const link = document.createElement("a");
+          link.download = `order-${order.name}.png`;
+          link.href = canvas.toDataURL("image/png");
+          link.click();
         }
       } catch (err) {
         console.error("Error sharing:", err);
-        handleDownloadImage();
+      } finally {
+        setGenerating(false);
       }
     }
   };
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity">
+      {/* Loading Overlay for Generating Image */}
+      {generating && (
+        <div className="absolute inset-0 z-[70] bg-black/40 backdrop-blur-[2px] flex flex-col items-center justify-center animate-in fade-in duration-200">
+          <div className="bg-white/90 p-6 rounded-[2rem] shadow-2xl flex flex-col items-center gap-4">
+            <div className="relative">
+              <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />
+              </div>
+            </div>
+            <p className="text-xs font-black text-blue-600 uppercase tracking-[0.2em] animate-pulse">
+              Menyiapkan Gambar...
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-t-[2.5rem] sm:rounded-2xl w-full max-w-lg max-h-[92vh] sm:max-h-[90vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-300">
         <div className="p-4 sm:p-6 border-b border-gray-100 flex justify-between items-center shrink-0">
           <div className="flex-1 text-center sm:text-left">
@@ -169,23 +248,30 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
             </div>
 
             <div className="space-y-4">
-              <p className="text-gray-400 font-black uppercase text-[9px] tracking-widest">
-                Daftar Buku
-              </p>
-              <div className="space-y-3">
+              <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                <p className="text-gray-400 font-black uppercase text-[9px] tracking-widest">
+                  Daftar Buku
+                </p>
+                <p className="text-gray-400 font-black uppercase text-[9px] tracking-widest">
+                  Harga
+                </p>
+              </div>
+              <div className="space-y-4">
                 {order.orders?.map((item, index) => (
                   <div
                     key={index}
-                    className="flex justify-between items-start gap-4 py-3 border-b border-gray-50 last:border-0"
+                    className="flex justify-between items-start gap-6 py-1"
                   >
                     <div className="flex-1 min-w-0">
-                      <span className="text-sm font-bold text-gray-700 block line-clamp-2">
+                      <p className="text-sm font-bold text-gray-800 description-text whitespace-pre-wrap break-words !leading-[1.7] pb-1">
                         {item.description}
-                      </span>
+                      </p>
                     </div>
-                    <span className="font-black text-sm text-gray-900 whitespace-nowrap shrink-0">
-                      Rp {item.price?.toLocaleString()}
-                    </span>
+                    <div className="shrink-0 pt-0.5">
+                      <p className="font-black text-sm text-gray-900 tabular-nums">
+                        Rp {item.price?.toLocaleString()}
+                      </p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -271,15 +357,27 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
         <div className="p-4 sm:p-6 border-t border-gray-100 bg-gray-50 shrink-0 grid grid-cols-2 gap-3">
           <button
             onClick={handleDownloadImage}
-            className="flex items-center justify-center py-4 bg-white border border-gray-200 text-gray-700 font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-gray-100 transition-all shadow-sm active:scale-95"
+            disabled={generating}
+            className="flex items-center justify-center py-4 bg-white border border-gray-200 text-gray-700 font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-gray-100 transition-all shadow-sm active:scale-95 disabled:opacity-50"
           >
-            <Download className="w-4 h-4 mr-2" /> Simpan
+            {generating ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            ) : (
+              <Download className="w-4 h-4 mr-2" />
+            )}
+            Simpan
           </button>
           <button
             onClick={handleShare}
-            className="flex items-center justify-center py-4 bg-blue-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 active:scale-95"
+            disabled={generating}
+            className="flex items-center justify-center py-4 bg-blue-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 active:scale-95 disabled:opacity-50"
           >
-            <Share2 className="w-4 h-4 mr-2" /> Bagikan
+            {generating ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            ) : (
+              <Share2 className="w-4 h-4 mr-2" />
+            )}
+            Bagikan
           </button>
         </div>
       </div>

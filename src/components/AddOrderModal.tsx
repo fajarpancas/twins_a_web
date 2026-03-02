@@ -172,7 +172,10 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity">
-      <div className="bg-white rounded-t-[2.5rem] sm:rounded-2xl w-full max-w-2xl max-h-[92vh] sm:max-h-[90vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-300">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white rounded-t-[2.5rem] sm:rounded-2xl w-full max-w-2xl max-h-[92vh] sm:max-h-[90vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-300"
+      >
         <div className="p-4 sm:p-6 border-b border-gray-100 flex justify-between items-center shrink-0">
           <div className="flex-1 text-center sm:text-left">
             <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4 sm:hidden" />
@@ -181,6 +184,7 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
             </h2>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors absolute right-4 top-4 sm:static"
           >
@@ -188,11 +192,7 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
           </button>
         </div>
 
-        <form
-          id="order-form"
-          onSubmit={handleSubmit}
-          className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 sm:space-y-6"
-        >
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 sm:space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
@@ -451,12 +451,11 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
               ))}
             </div>
           </div>
-        </form>
+        </div>
 
         <div className="p-4 sm:p-6 border-t border-gray-100 bg-gray-50 shrink-0">
           <button
             type="submit"
-            form="order-form"
             disabled={loading}
             className="w-full py-4 bg-blue-600 text-white font-black uppercase tracking-widest rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98]"
           >
@@ -469,7 +468,7 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
             )}
           </button>
         </div>
-      </div>
+      </form>
 
       {/* Selection Modal */}
       {isSelectionModalVisible && (
