@@ -188,6 +188,15 @@ const ItemListScreen: React.FC = () => {
     });
   }, [orders, searchQuery, statusFilter, startDate, endDate]);
 
+  const omzetWithoutUnique = useMemo(() => {
+    return filteredOrders.reduce((sum, order) => {
+      const itemsTotal =
+        order.orders?.reduce((s, it) => s + (it.price || 0), 0) || 0;
+      const packing = order.is_packing_fee_applied ? 2000 : 0;
+      return sum + itemsTotal + packing;
+    }, 0);
+  }, [filteredOrders]);
+
   const getStatusColor = (status: OrderDocument["status"]) => {
     switch (status) {
       case "pending":
@@ -318,6 +327,16 @@ const ItemListScreen: React.FC = () => {
             aria-label="Sampai Tanggal"
           />
         </div>
+      </div>
+
+      {/* Omzet Banner */}
+      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+        <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">
+          Omzet (tanpa Kode Unik)
+        </p>
+        <p className="text-xl font-extrabold text-blue-600">
+          Rp {omzetWithoutUnique.toLocaleString("id-ID")}
+        </p>
       </div>
 
       {/* Grid of Orders */}
