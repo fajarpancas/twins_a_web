@@ -48,6 +48,61 @@ const ItemListScreen: React.FC = () => {
         "desc",
       );
       setOrders(data as OrderDocument[]);
+      const ordersData = data as OrderDocument[];
+      const today = new Date();
+      const toBackfillMap = new Map<string, number>();
+      const computeUniqueCode = (o: OrderDocument) => {
+        const base =
+          (o.name || "").length +
+          (o.last_4_digits_phone || "")
+            .split("")
+            .reduce((s, c) => s + c.charCodeAt(0), 0) +
+          (o.orders || []).reduce(
+            (s, it) => s + (it.description?.length || 0),
+            0,
+          ) +
+          today.getDate() +
+          today.getMonth() +
+          today.getFullYear();
+        const code = (base % 100) + 1;
+        return code;
+      };
+      ordersData.forEach((o) => {
+        if (!o.created_at) return;
+        const d = new Date(o.created_at);
+        const isToday =
+          d.getFullYear() === today.getFullYear() &&
+          d.getMonth() === today.getMonth() &&
+          d.getDate() === today.getDate();
+        if (
+          isToday &&
+          (o.unique_code === undefined || o.unique_code === null)
+        ) {
+          toBackfillMap.set(o.id, computeUniqueCode(o));
+        }
+        if (
+          o.last_4_digits_phone === "8054" &&
+          (o.unique_code === undefined || o.unique_code === null)
+        ) {
+          toBackfillMap.set(o.id, computeUniqueCode(o));
+        }
+      });
+      if (toBackfillMap.size > 0) {
+        const updates = Array.from(toBackfillMap.entries()).map(([id, code]) =>
+          FirestoreService.updateDocument("orders", id, {
+            unique_code: code,
+          }),
+        );
+        Promise.allSettled(updates).then(() => {
+          setOrders((prev) => {
+            return prev.map((p) =>
+              toBackfillMap.has(p.id)
+                ? { ...p, unique_code: toBackfillMap.get(p.id) as number }
+                : p,
+            );
+          });
+        });
+      }
     } catch (error) {
       console.error("Error fetching orders:", error);
     } finally {
@@ -100,11 +155,11 @@ const ItemListScreen: React.FC = () => {
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
       const query = searchQuery.toLowerCase();
-      
+
       const matchesName = order.name?.toLowerCase().includes(query);
       const matchesPhone = order.last_4_digits_phone?.includes(query);
-      const matchesItems = order.orders?.some(item => 
-        item.description?.toLowerCase().includes(query)
+      const matchesItems = order.orders?.some((item) =>
+        item.description?.toLowerCase().includes(query),
       );
 
       const matchesSearch = matchesName || matchesPhone || matchesItems;
@@ -254,6 +309,10 @@ const ItemListScreen: React.FC = () => {
                   <p className="text-[10px] text-gray-400 font-mono tracking-tighter">
                     ID: {order.id.slice(-6).toUpperCase()} •{" "}
                     {order.last_4_digits_phone}
+                    {order.unique_code !== undefined &&
+                    order.unique_code !== null
+                      ? ` • Kode Unik: Rp ${order.unique_code.toLocaleString()}`
+                      : ""}
                   </p>
                 </div>
                 <div
@@ -300,10 +359,12 @@ const ItemListScreen: React.FC = () => {
                     <p className="text-lg font-black text-blue-600 leading-none">
                       Rp{" "}
                       {(
-                        order.orders?.reduce(
+                        (order.orders?.reduce(
                           (sum, i) => sum + (i.price || 0),
                           0,
-                        ) || 0
+                        ) || 0) +
+                        (order.unique_code || 0) +
+                        (order.is_packing_fee_applied ? 2000 : 0)
                       ).toLocaleString()}
                     </p>
                   </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Edit2,
   Trash2,
@@ -35,10 +35,6 @@ const OrderItem: React.FC<OrderItemProps> = ({
   const [trackingNumber, setTrackingNumber] = useState(
     item.tracking_number || "",
   );
-
-  useEffect(() => {
-    setTrackingNumber(item.tracking_number || "");
-  }, [item.tracking_number]);
 
   const totalPrice =
     item.orders?.reduce((sum, order) => sum + (order.price || 0), 0) || 0;

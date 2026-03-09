@@ -15,7 +15,7 @@ import { db } from "../firebase/config";
 
 export interface FirestoreDocument {
   id: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface OrderItem {
@@ -31,6 +31,7 @@ export interface OrderDocument extends FirestoreDocument {
   orders: OrderItem[];
   status: "pending" | "packing" | "sent" | "hnr";
   payment_status: "full" | "half" | "none";
+  payment_type?: string;
   is_book_paid?: boolean;
   is_shipping_paid?: boolean;
   is_packing_fee_applied?: boolean;
@@ -76,7 +77,7 @@ class FirestoreService {
     orderDirection: OrderByDirection = "asc",
   ): Promise<FirestoreDocument[]> {
     try {
-      let q = collection(db, collectionName);
+      const q = collection(db, collectionName);
       let queryRef;
       if (orderByField) {
         queryRef = query(q, orderBy(orderByField, orderDirection));
@@ -108,7 +109,10 @@ class FirestoreService {
     }
   }
 
-  async addDocument(collectionName: string, data: any): Promise<string> {
+  async addDocument(
+    collectionName: string,
+    data: Record<string, unknown>,
+  ): Promise<string> {
     const docRef = await addDoc(collection(db, collectionName), {
       ...data,
       created_at: Timestamp.now().toDate().toISOString(),
@@ -120,7 +124,7 @@ class FirestoreService {
   async updateDocument(
     collectionName: string,
     docId: string,
-    data: any,
+    data: Record<string, unknown>,
   ): Promise<void> {
     const docRef = doc(db, collectionName, docId);
     await updateDoc(docRef, {

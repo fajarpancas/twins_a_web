@@ -224,7 +224,7 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                 TwinsA
               </h1>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mt-1">
-                Bukti Pesanan Resmi
+                Nota Pesanan Resmi
               </p>
             </div>
 
@@ -274,6 +274,34 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                     </div>
                   </div>
                 ))}
+                {order.unique_code ? (
+                  <div className="flex justify-between items-start gap-6 py-1">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-gray-800 description-text whitespace-pre-wrap break-words !leading-[1.7] pb-1">
+                        Kode Unik
+                      </p>
+                    </div>
+                    <div className="shrink-0 pt-0.5">
+                      <p className="font-black text-sm text-gray-900 tabular-nums">
+                        Rp {order.unique_code?.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+                {appliedPackingFee > 0 ? (
+                  <div className="flex justify-between items-start gap-6 py-1">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-gray-800 description-text whitespace-pre-wrap break-words !leading-[1.7] pb-1">
+                        Biaya Packing
+                      </p>
+                    </div>
+                    <div className="shrink-0 pt-0.5">
+                      <p className="font-black text-sm text-gray-900 tabular-nums">
+                        Rp {appliedPackingFee.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
 
@@ -310,9 +338,17 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                   Rp {finalTotal.toLocaleString()}
                 </span>
               </div>
+              {order.unique_code ? (
+                <div className="mt-2 bg-blue-50 border border-blue-100 rounded-xl p-3">
+                  <p className="text-[10px] text-blue-700 font-bold leading-relaxed">
+                    Mohon transfer sesuai Total Akhir termasuk Kode Unik untuk
+                    memudahkan pengecekan transfer.
+                  </p>
+                </div>
+              ) : null}
             </div>
 
-            <div className="bg-blue-50/80 p-5 rounded-2xl border border-blue-100/50 space-y-3">
+            {/* <div className="bg-blue-50/80 p-5 rounded-2xl border border-blue-100/50 space-y-3">
               <p className="text-blue-600 font-black uppercase text-[9px] tracking-widest">
                 Informasi Pengiriman
               </p>
@@ -344,7 +380,7 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                   </div>
                 )}
               </div>
-            </div>
+            </div> */}
 
             <div className="text-center pt-4">
               <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.3em]">

@@ -19,6 +19,17 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
   onSave,
   initialData,
 }) => {
+  const computeUniqueCode = () => {
+    const base =
+      (name || "").length +
+      (phone || "").split("").reduce((s, c) => s + c.charCodeAt(0), 0) +
+      (items || []).reduce((s, it) => s + (it.description?.length || 0), 0) +
+      new Date().getDate() +
+      new Date().getMonth() +
+      new Date().getFullYear();
+    const code = (base % 100) + 1;
+    return code;
+  };
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
@@ -142,6 +153,10 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
     e.preventDefault();
     setLoading(true);
     try {
+      const uniqueCode =
+        initialData?.unique_code !== undefined
+          ? initialData.unique_code
+          : computeUniqueCode();
       const orderData: Omit<OrderDocument, "id"> = {
         name,
         last_4_digits_phone: phone,
@@ -154,6 +169,7 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
         status: initialData?.status || "pending",
         created_at: initialData?.created_at || new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        unique_code: uniqueCode,
       };
       await onSave(orderData);
       onClose();
