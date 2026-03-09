@@ -28,6 +28,8 @@ const ItemListScreen: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<
     OrderDocument["status"] | "all"
   >("all");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
   const [isChecklistVisible, setIsChecklistVisible] = useState(false);
@@ -167,9 +169,24 @@ const ItemListScreen: React.FC = () => {
       const matchesStatus =
         statusFilter === "all" || order.status === statusFilter;
 
-      return matchesSearch && matchesStatus;
+      let matchesDate = true;
+      if (order.created_at) {
+        const d = new Date(order.created_at);
+        if (startDate) {
+          const s = new Date(startDate);
+          s.setHours(0, 0, 0, 0);
+          if (d < s) matchesDate = false;
+        }
+        if (endDate) {
+          const e = new Date(endDate);
+          e.setHours(23, 59, 59, 999);
+          if (d > e) matchesDate = false;
+        }
+      }
+
+      return matchesSearch && matchesStatus && matchesDate;
     });
-  }, [orders, searchQuery, statusFilter]);
+  }, [orders, searchQuery, statusFilter, startDate, endDate]);
 
   const getStatusColor = (status: OrderDocument["status"]) => {
     switch (status) {
@@ -282,6 +299,24 @@ const ItemListScreen: React.FC = () => {
             <option value="sent">Sent</option>
             <option value="hnr">HnR</option>
           </select>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Dari"
+            aria-label="Dari Tanggal"
+          />
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Sampai"
+            aria-label="Sampai Tanggal"
+          />
         </div>
       </div>
 
