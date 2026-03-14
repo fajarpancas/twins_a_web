@@ -236,6 +236,12 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                 <p className="font-bold text-lg text-gray-900 leading-tight">
                   {order.name}
                 </p>
+                <p className="text-[10px] text-gray-500 font-mono">
+                  4 Digit No HP:{" "}
+                  <span className="text-gray-800 font-bold">
+                    {order.last_4_digits_phone}
+                  </span>
+                </p>
               </div>
               <div className="text-right space-y-1">
                 <p className="text-gray-400 font-black uppercase text-[9px] tracking-widest">

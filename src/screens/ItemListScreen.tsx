@@ -155,7 +155,14 @@ const ItemListScreen: React.FC = () => {
   };
 
   const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
+    const calcTotalWithUnique = (order: OrderDocument) => {
+      const itemsTotal =
+        order.orders?.reduce((sum, i) => sum + (i.price || 0), 0) || 0;
+      const unique = order.unique_code || 0;
+      const packing = order.is_packing_fee_applied ? 2000 : 0;
+      return itemsTotal + unique + packing;
+    };
+    const list = orders.filter((order) => {
       const query = searchQuery.toLowerCase();
 
       const matchesName = order.name?.toLowerCase().includes(query);
@@ -186,6 +193,7 @@ const ItemListScreen: React.FC = () => {
 
       return matchesSearch && matchesStatus && matchesDate;
     });
+    return list.sort((a, b) => calcTotalWithUnique(b) - calcTotalWithUnique(a));
   }, [orders, searchQuery, statusFilter, startDate, endDate]);
 
   const omzetWithoutUnique = useMemo(() => {
