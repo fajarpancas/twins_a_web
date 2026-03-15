@@ -13,7 +13,9 @@ import {
   XCircle,
   CreditCard,
   ExternalLink,
+  Download,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import FirestoreService, {
   type OrderDocument,
 } from "../services/FirestoreService";
@@ -240,6 +242,27 @@ const ItemListScreen: React.FC = () => {
     }, 0);
   }, [filteredOrders]);
 
+  const exportToExcel = () => {
+    const rows = filteredOrders.map((order) => {
+      const itemsTotal =
+        order.orders?.reduce((s, it) => s + (it.price || 0), 0) || 0;
+      const totalTransfer =
+        itemsTotal +
+        (order.unique_code || 0) +
+        (order.is_packing_fee_applied ? 2000 : 0);
+      return {
+        "Nama Customer": order.name,
+        "4 Digit No HP": order.last_4_digits_phone,
+        "Total Transfer": totalTransfer,
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Order Management");
+    const today = new Date().toISOString().split("T")[0];
+    XLSX.writeFile(wb, `Order-Management-${today}.xlsx`);
+  };
+
   const getStatusColor = (status: OrderDocument["status"]) => {
     switch (status) {
       case "pending":
@@ -305,12 +328,18 @@ const ItemListScreen: React.FC = () => {
             Total {filteredOrders.length} pesanan ditemukan
           </p>
         </div>
-        <div className="grid grid-cols-2 sm:flex gap-2 w-full sm:w-auto">
+        <div className="grid grid-cols-3 sm:flex gap-2 w-full sm:w-auto">
           <button
             onClick={() => setIsChecklistVisible(true)}
             className="flex items-center justify-center px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-all shadow-sm text-sm sm:text-base"
           >
             <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 mr-2" /> Checklist
+          </button>
+          <button
+            onClick={exportToExcel}
+            className="flex items-center justify-center px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-all shadow-sm text-sm sm:text-base"
+          >
+            <Download className="w-4 h-4 sm:w-5 sm:h-5 mr-2" /> Export
           </button>
           <button
             onClick={() => {
