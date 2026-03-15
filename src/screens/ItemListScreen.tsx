@@ -47,9 +47,7 @@ const ItemListScreen: React.FC = () => {
   useEffect(() => {
     if (lastEditedOrderId) {
       requestAnimationFrame(() => {
-        const el = document.getElementById(
-          `order-card-${lastEditedOrderId}`,
-        );
+        const el = document.getElementById(`order-card-${lastEditedOrderId}`);
         if (el) {
           el.scrollIntoView({ behavior: "smooth", block: "center" });
         }
@@ -132,18 +130,37 @@ const ItemListScreen: React.FC = () => {
   const handleAddOrder = async (orderData: Omit<OrderDocument, "id">) => {
     try {
       if (selectedOrder) {
-        setLastEditedOrderId(selectedOrder.id);
-        await FirestoreService.updateDocument(
-          "orders",
-          selectedOrder.id,
-          orderData,
+        const id = selectedOrder.id;
+        setLastEditedOrderId(id);
+        await FirestoreService.updateDocument("orders", id, orderData);
+        setOrders((prev) =>
+          prev.map((o) =>
+            o.id === id
+              ? {
+                  ...o,
+                  ...orderData,
+                  id,
+                  updated_at: new Date().toISOString(),
+                }
+              : o,
+          ),
         );
       } else {
-        await FirestoreService.addDocument("orders", orderData);
+        const newId = await FirestoreService.addDocument("orders", orderData);
+        const now = new Date().toISOString();
+        const newOrder: OrderDocument = {
+          id: newId,
+          ...orderData,
+          created_at: now,
+          updated_at: now,
+        } as OrderDocument;
+        setOrders((prev) => [newOrder, ...prev]);
+        setLastEditedOrderId(newId);
       }
-      fetchOrders();
     } catch (error) {
       console.error("Error saving order:", error);
+    } finally {
+      setSelectedOrder(null);
     }
   };
 
