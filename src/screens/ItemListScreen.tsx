@@ -36,10 +36,27 @@ const ItemListScreen: React.FC = () => {
   const [selectedOrder, setSelectedOrder] = useState<OrderDocument | null>(
     null,
   );
+  const [lastEditedOrderId, setLastEditedOrderId] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     fetchOrders();
   }, []);
+
+  useEffect(() => {
+    if (lastEditedOrderId) {
+      requestAnimationFrame(() => {
+        const el = document.getElementById(
+          `order-card-${lastEditedOrderId}`,
+        );
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+        setLastEditedOrderId(null);
+      });
+    }
+  }, [orders, lastEditedOrderId]);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -115,6 +132,7 @@ const ItemListScreen: React.FC = () => {
   const handleAddOrder = async (orderData: Omit<OrderDocument, "id">) => {
     try {
       if (selectedOrder) {
+        setLastEditedOrderId(selectedOrder.id);
         await FirestoreService.updateDocument(
           "orders",
           selectedOrder.id,
@@ -356,6 +374,7 @@ const ItemListScreen: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredOrders.map((order) => (
             <div
+              id={`order-card-${order.id}`}
               key={order.id}
               className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col group"
             >
@@ -449,6 +468,7 @@ const ItemListScreen: React.FC = () => {
                   <button
                     onClick={() => {
                       setSelectedOrder(order);
+                      setLastEditedOrderId(order.id);
                       setIsAddModalVisible(true);
                     }}
                     className="p-2 text-amber-600 hover:bg-amber-100 rounded-xl transition-all"
