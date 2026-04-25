@@ -14,6 +14,7 @@ import {
   CreditCard,
   ExternalLink,
   Download,
+  Upload,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import FirestoreService, {
@@ -22,6 +23,7 @@ import FirestoreService, {
 import AddOrderModal from "../components/AddOrderModal.tsx";
 import OrderDetailModal from "../components/OrderDetailModal.tsx";
 import BookChecklistModal from "../components/BookChecklistModal.tsx";
+import CsvImportModal from "../components/CsvImportModal.tsx";
 
 const ItemListScreen: React.FC = () => {
   const [orders, setOrders] = useState<OrderDocument[]>([]);
@@ -41,6 +43,7 @@ const ItemListScreen: React.FC = () => {
   const [lastEditedOrderId, setLastEditedOrderId] = useState<string | null>(
     null,
   );
+  const [isCsvImportVisible, setIsCsvImportVisible] = useState(false);
 
   useEffect(() => {
     fetchOrders();
@@ -163,6 +166,15 @@ const ItemListScreen: React.FC = () => {
       console.error("Error saving order:", error);
     } finally {
       setSelectedOrder(null);
+    }
+  };
+
+  const handleBulkSave = async (orders: Omit<OrderDocument, "id">[]) => {
+    const now = new Date().toISOString();
+    for (const orderData of orders) {
+      const newId = await FirestoreService.addDocument("orders", orderData);
+      const newOrder: OrderDocument = { id: newId, ...orderData, created_at: now, updated_at: now } as OrderDocument;
+      setOrders((prev) => [newOrder, ...prev]);
     }
   };
 
@@ -328,7 +340,7 @@ const ItemListScreen: React.FC = () => {
             Total {filteredOrders.length} pesanan ditemukan
           </p>
         </div>
-        <div className="grid grid-cols-3 sm:flex gap-2 w-full sm:w-auto">
+        <div className="grid grid-cols-2 sm:flex gap-2 w-full sm:w-auto">
           <button
             onClick={() => setIsChecklistVisible(true)}
             className="flex items-center justify-center px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-all shadow-sm text-sm sm:text-base"
@@ -340,6 +352,12 @@ const ItemListScreen: React.FC = () => {
             className="flex items-center justify-center px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-all shadow-sm text-sm sm:text-base"
           >
             <Download className="w-4 h-4 sm:w-5 sm:h-5 mr-2" /> Export
+          </button>
+          <button
+            onClick={() => setIsCsvImportVisible(true)}
+            className="flex items-center justify-center px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-all shadow-sm text-sm sm:text-base"
+          >
+            <Upload className="w-4 h-4 sm:w-5 sm:h-5 mr-2" /> Import
           </button>
           <button
             onClick={() => {
@@ -596,6 +614,12 @@ const ItemListScreen: React.FC = () => {
         visible={isChecklistVisible}
         onClose={() => setIsChecklistVisible(false)}
         orders={filteredOrders}
+      />
+
+      <CsvImportModal
+        visible={isCsvImportVisible}
+        onClose={() => setIsCsvImportVisible(false)}
+        onBulkSave={handleBulkSave}
       />
     </div>
   );
