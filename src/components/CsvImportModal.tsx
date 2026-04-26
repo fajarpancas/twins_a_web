@@ -100,9 +100,10 @@ const parseCSV = (text: string): CsvRow[] => {
     const name = get("name");
     if (!name) errors.push("Nama kosong");
 
-    const phone = get("phone");
+    const rawPhone = get("phone");
+    const phone = rawPhone.length > 0 && rawPhone.length <= 4 ? rawPhone.padStart(4, "0") : rawPhone;
     if (!phone) errors.push("Phone kosong");
-    else if (phone.length !== 4) errors.push(`Phone harus tepat 4 digit (dapat: "${phone}")`);
+    else if (phone.length !== 4) errors.push(`Phone harus tepat 4 digit (dapat: "${rawPhone}")`);
 
     const delivery_type = parseDeliveryType(get("delivery_type"));
     if (!["Manual", "Shopee"].includes(delivery_type))

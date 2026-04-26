@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import {
   Plus,
   Search,
@@ -32,8 +34,8 @@ const ItemListScreen: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<
     OrderDocument["status"] | "all"
   >("all");
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
   const [isChecklistVisible, setIsChecklistVisible] = useState(false);
@@ -240,6 +242,7 @@ const ItemListScreen: React.FC = () => {
         }
       }
 
+
       return matchesSearch && matchesStatus && matchesDate;
     });
     return list.sort((a, b) => calcTotalWithUnique(b) - calcTotalWithUnique(a));
@@ -400,21 +403,30 @@ const ItemListScreen: React.FC = () => {
           </select>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
+          <DatePicker
+            selected={startDate}
+            onChange={(date: Date | null) => setStartDate(date)}
+            selectsStart
+            startDate={startDate}
+            endDate={endDate}
+            placeholderText="Dari tanggal"
+            dateFormat="dd/MM/yyyy"
             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Dari"
-            aria-label="Dari Tanggal"
+            wrapperClassName="w-full"
+            isClearable
           />
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
+          <DatePicker
+            selected={endDate}
+            onChange={(date: Date | null) => setEndDate(date)}
+            selectsEnd
+            startDate={startDate}
+            endDate={endDate}
+            minDate={startDate ?? undefined}
+            placeholderText="Sampai tanggal"
+            dateFormat="dd/MM/yyyy"
             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Sampai"
-            aria-label="Sampai Tanggal"
+            wrapperClassName="w-full"
+            isClearable
           />
         </div>
       </div>
@@ -470,13 +482,13 @@ const ItemListScreen: React.FC = () => {
 
               {/* Order Content */}
               <div className="p-4 flex-1 space-y-4">
-                <div className="space-y-2">
-                  {order.orders?.map((item, idx) => (
+                <div className="space-y-1.5">
+                  {order.orders?.slice(0, 3).map((item, idx) => (
                     <div
                       key={idx}
-                      className="flex justify-between items-start text-xs bg-gray-50/50 p-2 rounded-lg border border-gray-50 group-hover:border-gray-100 transition-colors"
+                      className="flex justify-between items-center text-xs bg-gray-50/50 p-2 rounded-lg border border-gray-50 group-hover:border-gray-100 transition-colors"
                     >
-                      <span className="text-gray-600 line-clamp-2 mr-3 font-medium">
+                      <span className="text-gray-600 truncate mr-3 font-medium">
                         {item.description}
                       </span>
                       <span className="font-black text-gray-900 shrink-0">
@@ -484,6 +496,11 @@ const ItemListScreen: React.FC = () => {
                       </span>
                     </div>
                   ))}
+                  {(order.orders?.length ?? 0) > 3 && (
+                    <p className="text-[10px] text-gray-400 font-medium pl-1">
+                      +{(order.orders?.length ?? 0) - 3} buku lainnya…
+                    </p>
+                  )}
                 </div>
 
                 <div className="pt-3 border-t border-gray-50 flex justify-between items-end">

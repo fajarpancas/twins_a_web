@@ -46,7 +46,7 @@ const Sidebar = () => {
 
       {/* Sidebar Content */}
       <div className={`
-        fixed lg:static inset-y-0 left-0 w-64 bg-gray-900 text-white h-screen flex flex-col z-50
+        fixed lg:sticky lg:top-0 inset-y-0 left-0 w-64 bg-gray-900 text-white h-screen flex flex-col z-50
         transform transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
@@ -62,7 +62,7 @@ const Sidebar = () => {
           </button>
         </div>
 
-        <nav className="flex-1 mt-6 overflow-y-auto">
+        <nav className="flex-1 mt-6 overflow-y-hidden">
           {menuItems.map((item) => (
             <NavLink
               key={item.path}
