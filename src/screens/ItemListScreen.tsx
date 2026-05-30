@@ -46,6 +46,7 @@ const ItemListScreen: React.FC = () => {
     null,
   );
   const [isCsvImportVisible, setIsCsvImportVisible] = useState(false);
+  const [bookDetailOrder, setBookDetailOrder] = useState<OrderDocument | null>(null);
 
   useEffect(() => {
     fetchOrders();
@@ -501,6 +502,12 @@ const ItemListScreen: React.FC = () => {
                       +{(order.orders?.length ?? 0) - 3} buku lainnya…
                     </p>
                   )}
+                  <button
+                    onClick={() => setBookDetailOrder(order)}
+                    className="text-[10px] font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
+                  >
+                    Lihat Semua Buku
+                  </button>
                 </div>
 
                 <div className="pt-3 border-t border-gray-50 flex justify-between items-end">
@@ -638,6 +645,45 @@ const ItemListScreen: React.FC = () => {
         onClose={() => setIsCsvImportVisible(false)}
         onBulkSave={handleBulkSave}
       />
+
+      {/* Book Detail Modal */}
+      {bookDetailOrder && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setBookDetailOrder(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-lg max-w-sm w-full max-h-[80vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-3 py-2 border-b border-gray-100">
+              <h3 className="text-sm font-bold text-gray-900">
+                {bookDetailOrder.name || "Tanpa Nama"} ({bookDetailOrder.last_4_digits_phone || "****"})
+              </h3>
+            </div>
+            <div className="px-3 py-2 overflow-y-auto max-h-[60vh]">
+              <ul className="space-y-1">
+                {bookDetailOrder.orders?.map((order, index) => (
+                  <li
+                    key={index}
+                    className="text-xs font-semibold text-gray-700"
+                  >
+                    {order.description || "-"}
+                  </li>
+                )) || <li className="text-xs text-gray-400">Tidak ada buku</li>}
+              </ul>
+            </div>
+            <div className="px-3 py-2 border-t border-gray-100 flex justify-end">
+              <button
+                onClick={() => setBookDetailOrder(null)}
+                className="px-3 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
