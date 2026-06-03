@@ -435,10 +435,10 @@ const ItemListScreen: React.FC = () => {
       {/* Omzet Banner */}
       <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
         <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">
-          Omzet (tanpa Kode Unik) ({filteredOrders.length} pesanan)
+          Omzet dari tanggal {startDate ? startDate.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "awal"} {endDate ? `--> ${endDate.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}` : ""}
         </p>
         <p className="text-xl font-extrabold text-blue-600">
-          Rp {omzetWithoutUnique.toLocaleString("id-ID")}
+          Rp {omzetWithoutUnique.toLocaleString("id-ID")} ({filteredOrders.length})
         </p>
       </div>
 
