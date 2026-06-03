@@ -435,7 +435,7 @@ const ItemListScreen: React.FC = () => {
       {/* Omzet Banner */}
       <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
         <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">
-          Omzet (tanpa Kode Unik)
+          Omzet (tanpa Kode Unik) ({filteredOrders.length} pesanan)
         </p>
         <p className="text-xl font-extrabold text-blue-600">
           Rp {omzetWithoutUnique.toLocaleString("id-ID")}
