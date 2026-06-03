@@ -438,7 +438,7 @@ const ItemListScreen: React.FC = () => {
           Omzet dari tanggal {startDate ? startDate.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "awal"} {endDate ? `--> ${endDate.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}` : ""}
         </p>
         <p className="text-xl font-extrabold text-blue-600">
-          Rp {omzetWithoutUnique.toLocaleString("id-ID")} ({filteredOrders.length})
+          Rp {omzetWithoutUnique.toLocaleString("id-ID")} ({filteredOrders.length} pesanan)
         </p>
       </div>
 
