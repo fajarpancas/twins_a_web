@@ -35,21 +35,3 @@ body {
     background-color: #ffffff;
   }
 }
-
-@media print {
-  body * {
-    visibility: hidden;
-  }
-  .print-only, .print-only * {
-    visibility: visible;
-  }
-  .print-only {
-    position: absolute;
-    left: 0;
-    top: 0;
-  }
-  @page {
-    size: 58mm auto;
-    margin: 2mm;
-  }
-}

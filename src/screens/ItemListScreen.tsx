@@ -715,28 +715,6 @@ const ItemListScreen: React.FC = () => {
           </div>
         </div>
       )}
-      {/* Print Area (hidden on screen, visible on print) */}
-      {printOrders.length > 0 && (
-        <div className="print-only">
-          {printOrders.map((order) => (
-            <div key={order.id} style={{ width: "48mm", fontFamily: "monospace", fontSize: "10px", marginBottom: "12px", pageBreakAfter: "always" }}>
-              <div style={{ textAlign: "center", fontWeight: "bold", marginBottom: "2px" }}>
-                {order.name || "Tanpa Nama"}
-              </div>
-              <div style={{ textAlign: "center", marginBottom: "6px" }}>
-                {order.last_4_digits_phone || "****"}
-              </div>
-              <div style={{ borderTop: "1px dashed #000", borderBottom: "1px dashed #000", padding: "4px 0" }}>
-                {order.orders?.map((item, index) => (
-                  <div key={index} style={{ marginBottom: "2px" }}>
-                    {item.description || "-"}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 };
