@@ -385,7 +385,7 @@ const ItemListScreen: React.FC = () => {
               };
               const truncateText = (text: string, maxWidth: number, fontSize: number) => {
                 doc.setFontSize(fontSize);
-                const maxChars = Math.floor(maxWidth / (fontSize * 0.25));
+                const maxChars = Math.floor(maxWidth / (fontSize * 0.15));
                 if (text.length > maxChars) {
                   return text.substring(0, maxChars - 3) + "...";
                 }
