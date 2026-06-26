@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { jsPDF } from "jspdf";
 import {
   Plus,
   Search,
@@ -47,7 +48,6 @@ const ItemListScreen: React.FC = () => {
   );
   const [isCsvImportVisible, setIsCsvImportVisible] = useState(false);
   const [bookDetailOrder, setBookDetailOrder] = useState<OrderDocument | null>(null);
-  const [printOrders, setPrintOrders] = useState<OrderDocument[]>([]);
 
   useEffect(() => {
     fetchOrders();
@@ -64,12 +64,6 @@ const ItemListScreen: React.FC = () => {
       });
     }
   }, [orders, lastEditedOrderId]);
-
-  useEffect(() => {
-    const handleAfterPrint = () => setPrintOrders([]);
-    window.addEventListener("afterprint", handleAfterPrint);
-    return () => window.removeEventListener("afterprint", handleAfterPrint);
-  }, []);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -381,12 +375,33 @@ const ItemListScreen: React.FC = () => {
           </button>
           <button
             onClick={() => {
-              setPrintOrders(filteredOrders);
-              setTimeout(() => window.print(), 100);
+              const doc = new jsPDF({ unit: "mm", format: [58, 200] });
+              let y = 4;
+              filteredOrders.forEach((order, i) => {
+                if (i > 0) { doc.addPage(); y = 4; }
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(9);
+                doc.text(order.name || "Tanpa Nama", 29, y, { align: "center", maxWidth: 54 });
+                y += 4;
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(8);
+                doc.text(order.last_4_digits_phone || "****", 29, y, { align: "center" });
+                y += 4;
+                doc.setLineWidth(0.2);
+                doc.line(2, y, 56, y);
+                y += 3;
+                order.orders?.forEach((item) => {
+                  doc.text(item.description || "-", 3, y, { maxWidth: 52 });
+                  y += 4;
+                });
+                doc.line(2, y, 56, y);
+              });
+              const today = new Date().toISOString().split("T")[0];
+              doc.save(`orders-${today}.pdf`);
             }}
             className="flex items-center justify-center px-4 py-2 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-all shadow-md shadow-green-100 text-sm sm:text-base"
           >
-            <Download className="w-4 h-4 sm:w-5 sm:h-5 mr-2" /> Print
+            <Download className="w-4 h-4 sm:w-5 sm:h-5 mr-2" /> Download
           </button>
         </div>
       </div>
