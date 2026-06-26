@@ -377,8 +377,14 @@ const ItemListScreen: React.FC = () => {
             onClick={() => {
               const doc = new jsPDF({ unit: "mm", format: [58, 200] });
               let y = 4;
-              filteredOrders.forEach((order, i) => {
-                if (i > 0) { doc.addPage(); y = 4; }
+              const addNewPageIfNeeded = (needed: number) => {
+                if (y + needed > 190) {
+                  doc.addPage();
+                  y = 4;
+                }
+              };
+              filteredOrders.forEach((order) => {
+                addNewPageIfNeeded(11);
                 doc.setFont("helvetica", "bold");
                 doc.setFontSize(9);
                 doc.text(order.name || "Tanpa Nama", 29, y, { align: "center", maxWidth: 54 });
@@ -391,10 +397,12 @@ const ItemListScreen: React.FC = () => {
                 doc.line(2, y, 56, y);
                 y += 3;
                 order.orders?.forEach((item) => {
+                  addNewPageIfNeeded(4);
                   doc.text(item.description || "-", 3, y, { maxWidth: 52 });
                   y += 4;
                 });
                 doc.line(2, y, 56, y);
+                y += 3;
               });
               const today = new Date().toISOString().split("T")[0];
               doc.save(`orders-${today}.pdf`);
