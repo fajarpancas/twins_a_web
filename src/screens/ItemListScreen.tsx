@@ -383,6 +383,14 @@ const ItemListScreen: React.FC = () => {
                   y = 4;
                 }
               };
+              const truncateText = (text: string, maxWidth: number, fontSize: number) => {
+                doc.setFontSize(fontSize);
+                const maxChars = Math.floor(maxWidth / (fontSize * 0.45));
+                if (text.length > maxChars) {
+                  return text.substring(0, maxChars - 3) + "...";
+                }
+                return text;
+              };
               filteredOrders.forEach((order) => {
                 addNewPageIfNeeded(11);
                 doc.setFont("helvetica", "bold");
@@ -396,10 +404,14 @@ const ItemListScreen: React.FC = () => {
                 doc.setLineWidth(0.2);
                 doc.line(2, y, 56, y);
                 y += 3;
+                doc.setFontSize(7);
                 order.orders?.forEach((item) => {
-                  addNewPageIfNeeded(4);
-                  doc.text(item.description || "-", 3, y, { maxWidth: 52 });
-                  y += 4;
+                  addNewPageIfNeeded(3.5);
+                  const price = item.price ? `Rp${item.price.toLocaleString("id-ID")}` : "-";
+                  const desc = item.description || "-";
+                  const line = `${price} ${desc}`;
+                  doc.text(truncateText(line, 52, 7), 3, y);
+                  y += 3.5;
                 });
                 doc.line(2, y, 56, y);
                 y += 3;
