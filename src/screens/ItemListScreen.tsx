@@ -47,6 +47,7 @@ const ItemListScreen: React.FC = () => {
   );
   const [isCsvImportVisible, setIsCsvImportVisible] = useState(false);
   const [bookDetailOrder, setBookDetailOrder] = useState<OrderDocument | null>(null);
+  const [printOrders, setPrintOrders] = useState<OrderDocument[]>([]);
 
   useEffect(() => {
     fetchOrders();
@@ -63,6 +64,12 @@ const ItemListScreen: React.FC = () => {
       });
     }
   }, [orders, lastEditedOrderId]);
+
+  useEffect(() => {
+    const handleAfterPrint = () => setPrintOrders([]);
+    window.addEventListener("afterprint", handleAfterPrint);
+    return () => window.removeEventListener("afterprint", handleAfterPrint);
+  }, []);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -371,6 +378,15 @@ const ItemListScreen: React.FC = () => {
             className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-100 text-sm sm:text-base"
           >
             <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-2" /> Tambah
+          </button>
+          <button
+            onClick={() => {
+              setPrintOrders(filteredOrders);
+              setTimeout(() => window.print(), 100);
+            }}
+            className="flex items-center justify-center px-4 py-2 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-all shadow-md shadow-green-100 text-sm sm:text-base"
+          >
+            <Download className="w-4 h-4 sm:w-5 sm:h-5 mr-2" /> Print
           </button>
         </div>
       </div>
@@ -682,6 +698,28 @@ const ItemListScreen: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {/* Print Area (hidden on screen, visible on print) */}
+      {printOrders.length > 0 && (
+        <div className="print-only">
+          {printOrders.map((order, idx) => (
+            <div key={order.id} style={{ width: "48mm", fontFamily: "monospace", fontSize: "10px", marginBottom: "12px", pageBreakAfter: "always" }}>
+              <div style={{ textAlign: "center", fontWeight: "bold", marginBottom: "2px" }}>
+                {order.name || "Tanpa Nama"}
+              </div>
+              <div style={{ textAlign: "center", marginBottom: "6px" }}>
+                {order.last_4_digits_phone || "****"}
+              </div>
+              <div style={{ borderTop: "1px dashed #000", borderBottom: "1px dashed #000", padding: "4px 0" }}>
+                {order.orders?.map((item, index) => (
+                  <div key={index} style={{ marginBottom: "2px" }}>
+                    {item.description || "-"}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
