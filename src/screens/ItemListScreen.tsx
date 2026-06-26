@@ -703,7 +703,7 @@ const ItemListScreen: React.FC = () => {
       {/* Print Area (hidden on screen, visible on print) */}
       {printOrders.length > 0 && (
         <div className="print-only">
-          {printOrders.map((order, idx) => (
+          {printOrders.map((order) => (
             <div key={order.id} style={{ width: "48mm", fontFamily: "monospace", fontSize: "10px", marginBottom: "12px", pageBreakAfter: "always" }}>
               <div style={{ textAlign: "center", fontWeight: "bold", marginBottom: "2px" }}>
                 {order.name || "Tanpa Nama"}
