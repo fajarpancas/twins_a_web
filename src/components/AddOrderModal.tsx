@@ -38,9 +38,13 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
     useState<OrderDocument["payment_status"]>("none");
   const [isShippingPaid, setIsShippingPaid] = useState(false);
   const [isPackingFeeApplied, setIsPackingFeeApplied] = useState(true);
-  const [items, setItems] = useState<OrderItem[]>([
-    { id: Date.now().toString(), description: "", price: 0 },
-  ]);
+  const createEmptyItem = (): OrderItem => ({
+    id: Date.now().toString(),
+    description: "",
+    price: 0,
+    weight_kg: 0,
+  });
+  const [items, setItems] = useState<OrderItem[]>([createEmptyItem()]);
   const [loading, setLoading] = useState(false);
   const [stockItems, setStockItems] = useState<StockOpnameDocument[]>([]);
   const [isSelectionModalVisible, setSelectionModalVisible] = useState(false);
@@ -64,8 +68,11 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
         setIsPackingFeeApplied(initialData.is_packing_fee_applied ?? true);
         setItems(
           initialData.orders && initialData.orders.length > 0
-            ? initialData.orders
-            : [{ id: Date.now().toString(), description: "", price: 0 }],
+            ? initialData.orders.map((it) => ({
+                ...it,
+                weight_kg: it.weight_kg ?? 0,
+              }))
+            : [createEmptyItem()],
         );
       } else {
         resetForm();
@@ -90,14 +97,11 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
     setPaymentStatus("none");
     setIsShippingPaid(false);
     setIsPackingFeeApplied(true);
-    setItems([{ id: Date.now().toString(), description: "", price: 0 }]);
+    setItems([createEmptyItem()]);
   };
 
   const handleAddItem = () => {
-    setItems([
-      ...items,
-      { id: Date.now().toString(), description: "", price: 0 },
-    ]);
+    setItems([...items, createEmptyItem()]);
   };
 
   const handleRemoveItem = (id: string) => {
@@ -462,6 +466,29 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
                       }
                       className="flex-1 px-4 py-2.5 bg-white border-none rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-black text-blue-600"
                     />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-gray-400">Berat</span>
+                    <div className="relative flex-1">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0"
+                        value={item.weight_kg || ""}
+                        onChange={(e) =>
+                          handleUpdateItem(
+                            item.id,
+                            "weight_kg",
+                            parseFloat(e.target.value) || 0,
+                          )
+                        }
+                        className="w-full px-4 py-2.5 pr-12 bg-white border-none rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold text-gray-700"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 pointer-events-none">
+                        kg
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}

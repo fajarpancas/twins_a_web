@@ -22,6 +22,7 @@ export interface OrderItem {
   id: string;
   description: string;
   price: number;
+  weight_kg?: number;
   stockId?: string;
 }
 
