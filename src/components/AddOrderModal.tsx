@@ -38,13 +38,10 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
     useState<OrderDocument["payment_status"]>("none");
   const [isShippingPaid, setIsShippingPaid] = useState(false);
   const [isPackingFeeApplied, setIsPackingFeeApplied] = useState(true);
-  const createEmptyItem = (): OrderItem => ({
-    id: Date.now().toString(),
-    description: "",
-    price: 0,
-    weight_kg: 0,
-  });
-  const [items, setItems] = useState<OrderItem[]>([createEmptyItem()]);
+  const [totalWeight, setTotalWeight] = useState(0);
+  const [items, setItems] = useState<OrderItem[]>([
+    { id: Date.now().toString(), description: "", price: 0 },
+  ]);
   const [loading, setLoading] = useState(false);
   const [stockItems, setStockItems] = useState<StockOpnameDocument[]>([]);
   const [isSelectionModalVisible, setSelectionModalVisible] = useState(false);
@@ -66,13 +63,11 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
         setPaymentStatus(initialData.payment_status);
         setIsShippingPaid(initialData.is_shipping_paid || false);
         setIsPackingFeeApplied(initialData.is_packing_fee_applied ?? true);
+        setTotalWeight(initialData.total_weight_kg ?? 0);
         setItems(
           initialData.orders && initialData.orders.length > 0
-            ? initialData.orders.map((it) => ({
-                ...it,
-                weight_kg: it.weight_kg ?? 0,
-              }))
-            : [createEmptyItem()],
+            ? initialData.orders
+            : [{ id: Date.now().toString(), description: "", price: 0 }],
         );
       } else {
         resetForm();
@@ -97,11 +92,15 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
     setPaymentStatus("none");
     setIsShippingPaid(false);
     setIsPackingFeeApplied(true);
-    setItems([createEmptyItem()]);
+    setTotalWeight(0);
+    setItems([{ id: Date.now().toString(), description: "", price: 0 }]);
   };
 
   const handleAddItem = () => {
-    setItems([...items, createEmptyItem()]);
+    setItems([
+      ...items,
+      { id: Date.now().toString(), description: "", price: 0 },
+    ]);
   };
 
   const handleRemoveItem = (id: string) => {
@@ -169,6 +168,7 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
         payment_status: paymentStatus,
         is_shipping_paid: isShippingPaid,
         is_packing_fee_applied: isPackingFeeApplied,
+        total_weight_kg: totalWeight || 0,
         orders: items.filter((i) => i.description.trim() !== ""),
         status: initialData?.status || "pending",
         created_at: initialData?.created_at || new Date().toISOString(),
@@ -276,6 +276,27 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
                 <option value="half">DP</option>
                 <option value="full">Lunas</option>
               </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
+                Berat Total (kg)
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0"
+                  value={totalWeight || ""}
+                  onChange={(e) =>
+                    setTotalWeight(parseFloat(e.target.value) || 0)
+                  }
+                  className="w-full px-4 py-3 pr-12 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-gray-700"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 pointer-events-none">
+                  kg
+                </span>
+              </div>
             </div>
           </div>
 
@@ -466,29 +487,6 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
                       }
                       className="flex-1 px-4 py-2.5 bg-white border-none rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-black text-blue-600"
                     />
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold text-gray-400">Berat</span>
-                    <div className="relative flex-1">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="0"
-                        value={item.weight_kg || ""}
-                        onChange={(e) =>
-                          handleUpdateItem(
-                            item.id,
-                            "weight_kg",
-                            parseFloat(e.target.value) || 0,
-                          )
-                        }
-                        className="w-full px-4 py-2.5 pr-12 bg-white border-none rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold text-gray-700"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 pointer-events-none">
-                        kg
-                      </span>
-                    </div>
                   </div>
                 </div>
               ))}

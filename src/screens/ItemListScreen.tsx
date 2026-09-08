@@ -523,6 +523,9 @@ const ItemListScreen: React.FC = () => {
                       ? ` • Kode Unik: Rp ${order.unique_code.toLocaleString()}`
                       : ""}
                   </p>
+                  <p className="text-[10px] text-gray-400 font-mono tracking-tighter">
+                    Berat: {(order.total_weight_kg ?? 0).toLocaleString("id-ID")}kg
+                  </p>
                 </div>
                 <div
                   className={`shrink-0 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border flex items-center gap-1 shadow-sm ${getStatusColor(order.status)}`}
@@ -542,12 +545,6 @@ const ItemListScreen: React.FC = () => {
                     >
                       <span className="text-gray-600 truncate mr-3 font-medium">
                         {item.description}
-                      </span>
-                      <span
-                        className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded shrink-0"
-                        title="Berat"
-                      >
-                        {(item.weight_kg ?? 0).toLocaleString("id-ID")}kg
                       </span>
                       <span className="font-black text-gray-900 shrink-0">
                         Rp {item.price?.toLocaleString()}
@@ -723,12 +720,9 @@ const ItemListScreen: React.FC = () => {
                 {bookDetailOrder.orders?.map((order, index) => (
                   <li
                     key={index}
-                    className="text-xs font-semibold text-gray-700 flex justify-between items-center gap-2"
+                    className="text-xs font-semibold text-gray-700"
                   >
-                    <span className="truncate">{order.description || "-"}</span>
-                    <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">
-                      {(order.weight_kg ?? 0).toLocaleString("id-ID")}kg
-                    </span>
+                    {order.description || "-"}
                   </li>
                 )) || <li className="text-xs text-gray-400">Tidak ada buku</li>}
               </ul>

@@ -22,7 +22,6 @@ export interface OrderItem {
   id: string;
   description: string;
   price: number;
-  weight_kg?: number;
   stockId?: string;
 }
 
@@ -36,6 +35,7 @@ export interface OrderDocument extends FirestoreDocument {
   is_book_paid?: boolean;
   is_shipping_paid?: boolean;
   is_packing_fee_applied?: boolean;
+  total_weight_kg?: number;
   updated_at: string;
   created_at: string;
   delivery_address?: string;
