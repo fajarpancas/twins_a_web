@@ -37,6 +37,7 @@ const ItemListScreen: React.FC = () => {
   >("all");
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
+  const [keepFilter, setKeepFilter] = useState(false);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
   const [isChecklistVisible, setIsChecklistVisible] = useState(false);
@@ -207,6 +208,38 @@ const ItemListScreen: React.FC = () => {
     }
   };
 
+  const toggleOrderHnr = async (order: OrderDocument) => {
+    const newValue = !order.is_hnr;
+    try {
+      await FirestoreService.updateDocument("orders", order.id, {
+        is_hnr: newValue,
+      });
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === order.id ? { ...o, is_hnr: newValue } : o,
+        ),
+      );
+    } catch (error) {
+      console.error("Error updating HnR:", error);
+    }
+  };
+
+  const toggleOrderKeep = async (order: OrderDocument) => {
+    const newValue = !order.is_keep;
+    try {
+      await FirestoreService.updateDocument("orders", order.id, {
+        is_keep: newValue,
+      });
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === order.id ? { ...o, is_keep: newValue } : o,
+        ),
+      );
+    } catch (error) {
+      console.error("Error updating Keep:", error);
+    }
+  };
+
   const filteredOrders = useMemo(() => {
     const calcTotalWithUnique = (order: OrderDocument) => {
       const itemsTotal =
@@ -245,19 +278,27 @@ const ItemListScreen: React.FC = () => {
       }
 
 
-      return matchesSearch && matchesStatus && matchesDate;
+      const matchesKeep = !keepFilter || order.is_keep;
+
+
+      return matchesSearch && matchesStatus && matchesDate && matchesKeep;
     });
     return list.sort((a, b) => calcTotalWithUnique(b) - calcTotalWithUnique(a));
-  }, [orders, searchQuery, statusFilter, startDate, endDate]);
+  }, [orders, searchQuery, statusFilter, startDate, endDate, keepFilter]);
+
+  const activeOrders = useMemo(
+    () => filteredOrders.filter((order) => !order.is_hnr),
+    [filteredOrders],
+  );
 
   const omzetWithoutUnique = useMemo(() => {
-    return filteredOrders.reduce((sum, order) => {
+    return activeOrders.reduce((sum, order) => {
       const itemsTotal =
         order.orders?.reduce((s, it) => s + (it.price || 0), 0) || 0;
       const packing = order.is_packing_fee_applied ? 2000 : 0;
       return sum + itemsTotal + packing;
     }, 0);
-  }, [filteredOrders]);
+  }, [activeOrders]);
 
   const exportToExcel = () => {
     const rows = filteredOrders.map((order) => {
@@ -440,6 +481,15 @@ const ItemListScreen: React.FC = () => {
         </div>
         <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-xl">
           <Filter className="text-gray-400 w-4 h-4 shrink-0" />
+          <label className="flex items-center gap-1.5 whitespace-nowrap cursor-pointer">
+            <input
+              type="checkbox"
+              checked={keepFilter}
+              onChange={(e) => setKeepFilter(e.target.checked)}
+              className="accent-indigo-600 w-4 h-4"
+            />
+            <span className="text-sm font-medium text-gray-700">Keep</span>
+          </label>
           <select
             className="w-full bg-transparent border-none focus:ring-0 outline-none text-sm font-medium text-gray-700"
             value={statusFilter}
@@ -489,7 +539,7 @@ const ItemListScreen: React.FC = () => {
           Omzet dari tanggal {startDate ? startDate.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "awal"} {endDate ? `--> ${endDate.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}` : ""}
         </p>
         <p className="text-xl font-extrabold text-blue-600">
-          Rp {omzetWithoutUnique.toLocaleString("id-ID")} ({filteredOrders.length} pesanan)
+          Rp {omzetWithoutUnique.toLocaleString("id-ID")} ({activeOrders.length} pesanan)
         </p>
       </div>
 
@@ -504,7 +554,7 @@ const ItemListScreen: React.FC = () => {
             <div
               id={`order-card-${order.id}`}
               key={order.id}
-              className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col group"
+              className={`bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col group ${order.is_hnr ? "opacity-50 grayscale" : ""}`}
             >
               {/* Order Header */}
               <div className="p-4 border-b border-gray-50 flex justify-between items-start gap-2">
@@ -628,6 +678,38 @@ const ItemListScreen: React.FC = () => {
                 </div>
 
                 <div className="flex gap-1">
+                  <button
+                    onClick={() => toggleOrderKeep(order)}
+                    title={
+                      order.is_keep
+                        ? "Batalkan penandaan Keep"
+                        : "Tandai Keep"
+                    }
+                    className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl active:scale-95 transition-all border ${
+                      order.is_keep
+                        ? "bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700"
+                        : "bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                    }`}
+                  >
+                    {order.is_keep ? "Cancel Keep" : "Keep"}
+                  </button>
+                  {order.payment_status !== "full" && (
+                    <button
+                      onClick={() => toggleOrderHnr(order)}
+                      title={
+                        order.is_hnr
+                          ? "Batalkan penandaan HnR"
+                          : "Tandai HnR (tidak dihitung ke omzet & total pesanan)"
+                      }
+                      className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl active:scale-95 transition-all border ${
+                        order.is_hnr
+                          ? "bg-gray-800 text-white border-gray-800 hover:bg-gray-700"
+                          : "bg-white text-red-600 border-red-200 hover:bg-red-50"
+                      }`}
+                    >
+                      {order.is_hnr ? "Cancel HnR" : "HnR"}
+                    </button>
+                  )}
                   {order.status === "pending" && (
                     <button
                       onClick={() => updateOrderStatus(order.id, "packing")}

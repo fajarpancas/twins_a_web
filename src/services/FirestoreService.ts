@@ -35,6 +35,8 @@ export interface OrderDocument extends FirestoreDocument {
   is_book_paid?: boolean;
   is_shipping_paid?: boolean;
   is_packing_fee_applied?: boolean;
+  is_hnr?: boolean;
+  is_keep?: boolean;
   total_weight_kg?: number;
   updated_at: string;
   created_at: string;
