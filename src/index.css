@@ -1,15 +1,20 @@
+/* M3 design tokens (auto-generated, seed #1d4ed8) — must precede tailwind layers */
+@import "./m3-tokens.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Dark-mode strategy: class-based (.dark on <html>) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: "Roboto Flex", Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: light;
+  color: var(--md-sys-color-on-surface);
+  background-color: var(--md-sys-color-surface);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -17,21 +22,124 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+:root.dark {
+  color-scheme: dark;
+}
+
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  background-color: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
 }
 
 #root {
   width: 100%;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
+/* M3 elevation ladder */
+.elev-0 {
+  box-shadow: none;
+}
+.elev-1 {
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 3px 1px rgb(0 0 0 / 0.15);
+}
+.elev-2 {
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 2px 6px 2px rgb(0 0 0 / 0.15);
+}
+.elev-3 {
+  box-shadow: 0 4px 8px 3px rgb(0 0 0 / 0.15), 0 1px 3px rgb(0 0 0 / 0.3);
+}
+.elev-4 {
+  box-shadow: 0 6px 10px 4px rgb(0 0 0 / 0.15), 0 2px 3px rgb(0 0 0 / 0.3);
+}
+.elev-5 {
+  box-shadow: 0 8px 12px 6px rgb(0 0 0 / 0.15), 0 4px 4px rgb(0 0 0 / 0.3);
+}
+
+/* M3 typography scale aliases */
+.m3-display-large {
+  font-size: 57px;
+  line-height: 64px;
+  font-weight: 400;
+  letter-spacing: -0.25px;
+}
+.m3-display-medium {
+  font-size: 45px;
+  line-height: 52px;
+  font-weight: 400;
+}
+.m3-display-small {
+  font-size: 36px;
+  line-height: 44px;
+  font-weight: 400;
+}
+.m3-headline-large {
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 400;
+}
+.m3-headline-medium {
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 400;
+}
+.m3-headline-small {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 400;
+}
+.m3-title-large {
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 400;
+}
+.m3-title-medium {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  letter-spacing: 0.15px;
+}
+.m3-title-small {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+}
+.m3-body-large {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+}
+.m3-body-medium {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+  letter-spacing: 0.25px;
+}
+.m3-body-small {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+  letter-spacing: 0.4px;
+}
+.m3-label-large {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+}
+.m3-label-medium {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+.m3-label-small {
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
 }

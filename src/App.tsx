@@ -6,6 +6,7 @@ import ProfitReportScreen from "./screens/ProfitReportScreen";
 import ExpensesScreen from "./screens/ExpensesScreen";
 import SalesHistoryScreen from "./screens/SalesHistoryScreen";
 import EstimatedSalesScreen from "./screens/EstimatedSalesScreen";
+import AnalysisScreen from "./screens/AnalysisScreen";
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
           <Route path="/expenses" element={<ExpensesScreen />} />
           <Route path="/history" element={<SalesHistoryScreen />} />
           <Route path="/estimated" element={<EstimatedSalesScreen />} />
+          <Route path="/analysis" element={<AnalysisScreen />} />
         </Routes>
       </Layout>
     </BrowserRouter>

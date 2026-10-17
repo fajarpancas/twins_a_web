@@ -7,6 +7,7 @@ import {
   Wallet, 
   History, 
   BarChart3,
+  ChartColumn,
   Menu,
   X
 } from 'lucide-react';
@@ -21,6 +22,7 @@ const Sidebar = () => {
     { name: 'Pengeluaran', path: '/expenses', icon: Wallet },
     { name: 'History Penjualan', path: '/history', icon: History },
     { name: 'Estimasi Penjualan', path: '/estimated', icon: BarChart3 },
+    { name: 'Analisis Penjualan', path: '/analysis', icon: ChartColumn },
   ];
 
   const toggleSidebar = () => setIsOpen(!isOpen);
