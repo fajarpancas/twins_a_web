@@ -38,6 +38,7 @@ const ItemListScreen: React.FC = () => {
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [keepFilter, setKeepFilter] = useState(false);
+  const [paidFilter, setPaidFilter] = useState(false);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
   const [isChecklistVisible, setIsChecklistVisible] = useState(false);
@@ -280,11 +281,13 @@ const ItemListScreen: React.FC = () => {
 
       const matchesKeep = !keepFilter || order.is_keep;
 
+      const matchesPaid = !paidFilter || order.payment_status === "full";
 
-      return matchesSearch && matchesStatus && matchesDate && matchesKeep;
+
+      return matchesSearch && matchesStatus && matchesDate && matchesKeep && matchesPaid;
     });
     return list.sort((a, b) => calcTotalWithUnique(b) - calcTotalWithUnique(a));
-  }, [orders, searchQuery, statusFilter, startDate, endDate, keepFilter]);
+  }, [orders, searchQuery, statusFilter, startDate, endDate, keepFilter, paidFilter]);
 
   const activeOrders = useMemo(
     () => filteredOrders.filter((order) => !order.is_hnr),
@@ -468,7 +471,7 @@ const ItemListScreen: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 animate-fade-slide-left">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input
@@ -481,6 +484,15 @@ const ItemListScreen: React.FC = () => {
         </div>
         <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-xl">
           <Filter className="text-gray-400 w-4 h-4 shrink-0" />
+          <label className="flex items-center gap-1.5 whitespace-nowrap cursor-pointer">
+            <input
+              type="checkbox"
+              checked={paidFilter}
+              onChange={(e) => setPaidFilter(e.target.checked)}
+              className="accent-green-600 w-4 h-4"
+            />
+            <span className="text-sm font-medium text-gray-700">Lunas</span>
+          </label>
           <label className="flex items-center gap-1.5 whitespace-nowrap cursor-pointer">
             <input
               type="checkbox"
@@ -534,7 +546,7 @@ const ItemListScreen: React.FC = () => {
       </div>
 
       {/* Omzet Banner */}
-      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between animate-fade-up">
         <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">
           Omzet dari tanggal {startDate ? startDate.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "awal"} {endDate ? `--> ${endDate.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}` : ""}
         </p>
@@ -550,21 +562,24 @@ const ItemListScreen: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredOrders.map((order) => (
+          {filteredOrders.map((order, idx) => (
             <div
               id={`order-card-${order.id}`}
               key={order.id}
-              className={`bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col group ${order.is_hnr ? "opacity-50 grayscale" : ""}`}
+              style={{ animationDelay: `${Math.min(idx * 35, 400)}ms` }}
+              className={`bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 animate-fade-up overflow-hidden flex flex-col group ${order.is_hnr ? "opacity-50 grayscale" : ""}`}
             >
               {/* Order Header */}
               <div className="p-4 border-b border-gray-50 flex justify-between items-start gap-2">
                 <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <h3 className="font-bold text-gray-900 truncate">
-                      {order.name}
-                    </h3>
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <h3 className="font-bold text-gray-900 truncate">
+                    {order.name}
+                  </h3>
+                  <span className="animate-pop-in inline-flex">
                     {getPaymentBadge(order.payment_status)}
-                  </div>
+                  </span>
+                </div>
                   <p className="text-[10px] text-gray-400 font-mono tracking-tighter">
                     ID: {order.id.slice(-6).toUpperCase()} •{" "}
                     {order.last_4_digits_phone}
@@ -591,7 +606,8 @@ const ItemListScreen: React.FC = () => {
                   {order.orders?.slice(0, 3).map((item, idx) => (
                     <div
                       key={idx}
-                      className="flex justify-between items-center text-xs bg-gray-50/50 p-2 rounded-lg border border-gray-50 group-hover:border-gray-100 transition-colors"
+                      style={{ animationDelay: `${idx * 60}ms` }}
+                      className="flex justify-between items-center text-xs bg-gray-50/50 p-2 rounded-lg border border-gray-50 group-hover:border-gray-100 transition-colors animate-fade-slide-left"
                     >
                       <span className="text-gray-600 truncate mr-3 font-medium">
                         {item.description}
@@ -629,7 +645,7 @@ const ItemListScreen: React.FC = () => {
                     <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-0.5">
                       Total Bayar
                     </p>
-                    <p className="text-lg font-black text-blue-600 leading-none">
+                    <p className="text-lg font-black text-blue-600 leading-none transition-transform duration-300 group-hover:scale-105 origin-right">
                       Rp{" "}
                       {(
                         (order.orders?.reduce(
@@ -650,10 +666,11 @@ const ItemListScreen: React.FC = () => {
                   <button
                     onClick={() => {
                       setSelectedOrder(order);
-                      setIsDetailModalVisible(true);
+                      setLastEditedOrderId(order.id);
+                      setIsAddModalVisible(true);
                     }}
-                    className="p-2 text-blue-600 hover:bg-blue-100 rounded-xl transition-all"
-                    title="Detail"
+                    className="p-2 text-amber-600 hover:bg-amber-100 active:scale-90 rounded-xl transition-all"
+                    title="Edit"
                   >
                     <Eye className="w-5 h-5" />
                   </button>
@@ -663,14 +680,14 @@ const ItemListScreen: React.FC = () => {
                       setLastEditedOrderId(order.id);
                       setIsAddModalVisible(true);
                     }}
-                    className="p-2 text-amber-600 hover:bg-amber-100 rounded-xl transition-all"
+                    className="p-2 text-amber-600 hover:bg-amber-100 active:scale-90 rounded-xl transition-all"
                     title="Edit"
                   >
                     <Edit2 className="w-5 h-5" />
                   </button>
                   <button
                     onClick={() => handleDeleteOrder(order.id)}
-                    className="p-2 text-red-600 hover:bg-red-100 rounded-xl transition-all"
+                    className="p-2 text-red-600 hover:bg-red-100 active:scale-90 rounded-xl transition-all"
                     title="Hapus"
                   >
                     <Trash2 className="w-5 h-5" />
@@ -745,8 +762,8 @@ const ItemListScreen: React.FC = () => {
 
       {/* Empty State */}
       {!loading && filteredOrders.length === 0 && (
-        <div className="bg-white rounded-3xl border border-dashed border-gray-300 p-12 text-center">
-          <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="bg-white rounded-3xl border border-dashed border-gray-300 p-12 text-center animate-fade-up">
+          <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 animate-soft-pulse">
             <Search className="w-10 h-10 text-gray-300" />
           </div>
           <h3 className="text-xl font-bold text-gray-900">Tidak ada order</h3>
