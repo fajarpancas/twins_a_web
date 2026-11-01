@@ -23,6 +23,7 @@ export interface OrderItem {
   description: string;
   price: number;
   stockId?: string;
+  has_rekap?: boolean;
 }
 
 export interface OrderDocument extends FirestoreDocument {

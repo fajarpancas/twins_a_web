@@ -218,6 +218,36 @@ const ItemListScreen: React.FC = () => {
     }
   };
 
+  const toggleBookRekap = async (order: OrderDocument, itemIndex: number) => {
+    const previous = order.orders ?? [];
+    const nextBooks = previous.map((item, index) =>
+      index === itemIndex ? { ...item, has_rekap: item.has_rekap !== true } : item,
+    );
+    const remember = (books: OrderDocument["orders"]) => {
+      setOrders((prev) =>
+        prev.map((entry) =>
+          entry.id === order.id ? { ...entry, orders: books } : entry,
+        ),
+      );
+      setBookDetailOrder((current) =>
+        current?.id === order.id ? { ...current, orders: books } : current,
+      );
+    };
+    remember(nextBooks);
+    try {
+      await FirestoreService.updateDocument("orders", order.id, {
+        orders: nextBooks.map((item) =>
+          Object.fromEntries(
+            Object.entries(item).filter(([, value]) => value !== undefined),
+          ),
+        ),
+      });
+    } catch (error) {
+      console.error("Error updating rekap:", error);
+      remember(previous);
+    }
+  };
+
   const toggleOrderKeep = async (order: OrderDocument) => {
     const newValue = !order.is_keep;
     try {
@@ -608,8 +638,10 @@ const ItemListScreen: React.FC = () => {
           onPage={(next) => goToListPage(orderPage.setPage, next)}
         />
         <div className="order-grid">
-          {orderPage.slice.map((order) => {
+          {orderPage.slice.map((order, index) => {
             const status = statusCopy(order.status);
+            const books = order.orders ?? [];
+            const uncheckedBooks = books.filter((item) => item.has_rekap !== true).length;
             const pay =
               (order.orders?.reduce((sum, item) => sum + (item.price || 0), 0) || 0) +
               (order.unique_code || 0) +
@@ -623,6 +655,7 @@ const ItemListScreen: React.FC = () => {
               {/* Order Header */}
               <header>
                 <div className="min-w-0">
+                  <p className="order-no">Pesanan No. {orderPage.from + index}</p>
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="truncate">{order.name || "Tanpa nama"}</h2>
                     {getPaymentBadge(order.payment_status)}
@@ -644,15 +677,27 @@ const ItemListScreen: React.FC = () => {
               </header>
 
               <div className="body">
-                {order.orders?.slice(0, 3).map((item, idx) => (
-                  <div className="line" key={idx}>
+                {books.length > 0 && (
+                  <p className="page-note">
+                    {uncheckedBooks === 0
+                      ? "Semua buku sudah rekap"
+                      : `${uncheckedBooks} buku belum rekap`}
+                  </p>
+                )}
+                {books.map((item, idx) => (
+                  <div className="line" key={item.id || idx}>
+                    <label className="rekap-flag">
+                      <input
+                        type="checkbox"
+                        checked={item.has_rekap === true}
+                        aria-label={item.description || "Buku"}
+                        onChange={() => toggleBookRekap(order, idx)}
+                      />
+                    </label>
                     <span className="truncate">{item.description}</span>
                     <span className="num">Rp {item.price?.toLocaleString("id-ID")}</span>
                   </div>
                 ))}
-                {(order.orders?.length ?? 0) > 3 && (
-                  <p className="page-note">+{(order.orders?.length ?? 0) - 3} buku lagi</p>
-                )}
                 <button type="button" className="btn btn-quiet" onClick={() => setBookDetailOrder(order)}>
                   Lihat semua buku
                 </button>
@@ -809,9 +854,24 @@ const ItemListScreen: React.FC = () => {
             <h2 id="book-detail-title">
               {bookDetailOrder.name || "Tanpa nama"} ({bookDetailOrder.last_4_digits_phone || "----"})
             </h2>
-            <ul className="mt-3 space-y-1">
-              {bookDetailOrder.orders?.map((order, index) => (
-                <li key={index}>{order.description || "-"}</li>
+            <p className="page-note">
+              {(bookDetailOrder.orders ?? []).filter((item) => item.has_rekap !== true).length === 0
+                ? "Semua buku sudah rekap"
+                : `${(bookDetailOrder.orders ?? []).filter((item) => item.has_rekap !== true).length} buku belum rekap`}
+            </p>
+            <ul className="book-detail-list">
+              {bookDetailOrder.orders?.map((item, index) => (
+                <li key={item.id || index}>
+                  <label className="rekap-flag">
+                    <input
+                      type="checkbox"
+                      checked={item.has_rekap === true}
+                      aria-label={item.description || "Buku"}
+                      onChange={() => toggleBookRekap(bookDetailOrder, index)}
+                    />
+                  </label>
+                  <span>{item.description || "-"}</span>
+                </li>
               )) || <li>Tidak ada buku</li>}
             </ul>
             <div className="mt-4 flex justify-end">
