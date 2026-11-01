@@ -4,17 +4,10 @@ import "react-datepicker/dist/react-datepicker.css";
 import { jsPDF } from "jspdf";
 import {
   Plus,
-  Search,
-  Filter,
   Trash2,
   Edit2,
   Eye,
-  RefreshCcw,
   BookOpen,
-  Package,
-  Truck,
-  XCircle,
-  CreditCard,
   ExternalLink,
   Download,
   Upload,
@@ -27,10 +20,19 @@ import AddOrderModal from "../components/AddOrderModal.tsx";
 import OrderDetailModal from "../components/OrderDetailModal.tsx";
 import BookChecklistModal from "../components/BookChecklistModal.tsx";
 import CsvImportModal from "../components/CsvImportModal.tsx";
+import {
+  CardSkeleton,
+  PAGE_SIZE,
+  Pager,
+  TallySkeleton,
+  goToListPage,
+  usePage,
+} from "../components/ListPage.tsx";
 
 const ItemListScreen: React.FC = () => {
   const [orders, setOrders] = useState<OrderDocument[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<
     OrderDocument["status"] | "all"
@@ -55,20 +57,10 @@ const ItemListScreen: React.FC = () => {
     fetchOrders();
   }, []);
 
-  useEffect(() => {
-    if (lastEditedOrderId) {
-      requestAnimationFrame(() => {
-        const el = document.getElementById(`order-card-${lastEditedOrderId}`);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "center" });
-        }
-        setLastEditedOrderId(null);
-      });
-    }
-  }, [orders, lastEditedOrderId]);
 
   const fetchOrders = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await FirestoreService.getCollection(
         "orders",
@@ -133,6 +125,7 @@ const ItemListScreen: React.FC = () => {
       }
     } catch (error) {
       console.error("Error fetching orders:", error);
+      setLoadError("Pesanan tidak terbaca.");
     } finally {
       setLoading(false);
     }
@@ -289,6 +282,30 @@ const ItemListScreen: React.FC = () => {
     return list.sort((a, b) => calcTotalWithUnique(b) - calcTotalWithUnique(a));
   }, [orders, searchQuery, statusFilter, startDate, endDate, keepFilter, paidFilter]);
 
+  const orderPage = usePage(
+    filteredOrders,
+    [statusFilter, searchQuery, paidFilter, keepFilter, startDate?.getTime() ?? "", endDate?.getTime() ?? ""].join("|"),
+  );
+
+  useEffect(() => {
+    if (!lastEditedOrderId) return;
+    const index = filteredOrders.findIndex((order) => order.id === lastEditedOrderId);
+    if (index < 0) {
+      setLastEditedOrderId(null);
+      return;
+    }
+    const nextPage = Math.floor(index / PAGE_SIZE) + 1;
+    if (orderPage.page !== nextPage) {
+      orderPage.setPage(nextPage);
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      document.getElementById(`order-card-${lastEditedOrderId}`)?.scrollIntoView({ block: "center" });
+      setLastEditedOrderId(null);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [lastEditedOrderId, filteredOrders, orderPage.page, orderPage.setPage]);
+
   const activeOrders = useMemo(
     () => filteredOrders.filter((order) => !order.is_hnr),
     [filteredOrders],
@@ -302,6 +319,44 @@ const ItemListScreen: React.FC = () => {
       return sum + itemsTotal + packing;
     }, 0);
   }, [activeOrders]);
+
+  const tally = useMemo(() => {
+    const query = searchQuery.toLowerCase();
+    const queue = orders.filter((order) => {
+      const matchesSearch =
+        order.name?.toLowerCase().includes(query) ||
+        order.last_4_digits_phone?.includes(query) ||
+        order.orders?.some((item) =>
+          item.description?.toLowerCase().includes(query),
+        );
+      let matchesDate = true;
+      if (order.created_at) {
+        const d = new Date(order.created_at);
+        if (startDate) {
+          const s = new Date(startDate);
+          s.setHours(0, 0, 0, 0);
+          if (d < s) matchesDate = false;
+        }
+        if (endDate) {
+          const e = new Date(endDate);
+          e.setHours(23, 59, 59, 999);
+          if (d > e) matchesDate = false;
+        }
+      }
+      const matchesKeep = !keepFilter || order.is_keep;
+      const matchesPaid = !paidFilter || order.payment_status === "full";
+      return matchesSearch && matchesDate && matchesKeep && matchesPaid;
+    });
+    const count = (status: OrderDocument["status"]) =>
+      queue.filter((order) => order.status === status).length;
+    return {
+      all: queue.length,
+      pending: count("pending"),
+      packing: count("packing"),
+      sent: count("sent"),
+      hnr: count("hnr"),
+    };
+  }, [orders, searchQuery, startDate, endDate, keepFilter, paidFilter]);
 
   const exportToExcel = () => {
     const rows = filteredOrders.map((order) => {
@@ -324,98 +379,68 @@ const ItemListScreen: React.FC = () => {
     XLSX.writeFile(wb, `Order-Management-${today}.xlsx`);
   };
 
-  const getStatusColor = (status: OrderDocument["status"]) => {
+  const statusCopy = (status: OrderDocument["status"]) => {
     switch (status) {
-      case "pending":
-        return "bg-amber-100 text-amber-700 border-amber-200";
       case "packing":
-        return "bg-blue-100 text-blue-700 border-blue-200";
+        return { label: "Dikemas", pill: "pill-accent" };
       case "sent":
-        return "bg-green-100 text-green-700 border-green-200";
+        return { label: "Terkirim", pill: "pill-pos" };
       case "hnr":
-        return "bg-red-100 text-red-700 border-red-200";
+        return { label: "HnR", pill: "pill-neg" };
       default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
-    }
-  };
-
-  const getStatusIcon = (status: OrderDocument["status"]) => {
-    switch (status) {
-      case "pending":
-        return <RefreshCcw className="w-4 h-4" />;
-      case "packing":
-        return <Package className="w-4 h-4" />;
-      case "sent":
-        return <Truck className="w-4 h-4" />;
-      case "hnr":
-        return <XCircle className="w-4 h-4" />;
-      default:
-        return null;
+        return { label: "Menunggu", pill: "pill-warn" };
     }
   };
 
   const getPaymentBadge = (status: OrderDocument["payment_status"]) => {
     switch (status) {
       case "full":
-        return (
-          <span className="text-[10px] px-2 py-0.5 bg-green-500 text-white rounded-full font-bold">
-            LUNAS
-          </span>
-        );
+        return <span className="pill pill-pos">Lunas</span>;
       case "half":
-        return (
-          <span className="text-[10px] px-2 py-0.5 bg-blue-500 text-white rounded-full font-bold">
-            DP
-          </span>
-        );
+        return <span className="pill pill-accent">DP</span>;
       default:
-        return (
-          <span className="text-[10px] px-2 py-0.5 bg-red-500 text-white rounded-full font-bold">
-            BELUM BAYAR
-          </span>
-        );
+        return <span className="pill pill-neg">Belum bayar</span>;
     }
   };
 
+  const stillOnBench = tally.pending + tally.packing;
+
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
-      {/* Header & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="page">
+      <div className="page-head">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-            Order Management
-          </h1>
-          <p className="text-gray-500 mt-1 text-sm">
-            Total {filteredOrders.length} pesanan ditemukan
+          <h1 className="page-title">Pesanan</h1>
+          <p className="page-note">
+            {loading
+              ? "Memuat pesanan."
+              : <>
+                  {stillOnBench} masih di meja, belum dikirim. Omzet saringan ini{" "}
+                  <span className="num" style={{ color: "var(--chart-1)" }}>
+                    Rp {omzetWithoutUnique.toLocaleString("id-ID")}
+                  </span>{" "}
+                  dari {activeOrders.length} pesanan.
+                </>}
           </p>
         </div>
-        <div className="grid grid-cols-2 sm:flex gap-2 w-full sm:w-auto">
-          <button
-            onClick={() => setIsChecklistVisible(true)}
-            className="flex items-center justify-center px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-all shadow-sm text-sm sm:text-base"
-          >
-            <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 mr-2" /> Checklist
+        <div className="actions">
+          <button type="button" onClick={() => setIsChecklistVisible(true)} className="btn">
+            <BookOpen aria-hidden="true" /> Checklist
+          </button>
+          <button type="button" onClick={exportToExcel} className="btn">
+            <Download aria-hidden="true" /> Export
+          </button>
+          <button type="button" onClick={() => setIsCsvImportVisible(true)} className="btn">
+            <Upload aria-hidden="true" /> Import
           </button>
           <button
-            onClick={exportToExcel}
-            className="flex items-center justify-center px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-all shadow-sm text-sm sm:text-base"
-          >
-            <Download className="w-4 h-4 sm:w-5 sm:h-5 mr-2" /> Export
-          </button>
-          <button
-            onClick={() => setIsCsvImportVisible(true)}
-            className="flex items-center justify-center px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-all shadow-sm text-sm sm:text-base"
-          >
-            <Upload className="w-4 h-4 sm:w-5 sm:h-5 mr-2" /> Import
-          </button>
-          <button
+            type="button"
             onClick={() => {
               setSelectedOrder(null);
               setIsAddModalVisible(true);
             }}
-            className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-100 text-sm sm:text-base"
+            className="btn btn-primary"
           >
-            <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-2" /> Tambah
+            <Plus aria-hidden="true" /> Tambah pesanan
           </button>
           <button
             onClick={() => {
@@ -463,60 +488,69 @@ const ItemListScreen: React.FC = () => {
               const today = new Date().toISOString().split("T")[0];
               doc.save(`orders-${today}.pdf`);
             }}
-            className="flex items-center justify-center px-4 py-2 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-all shadow-md shadow-green-100 text-sm sm:text-base"
+            className="btn"
           >
-            <Download className="w-4 h-4 sm:w-5 sm:h-5 mr-2" /> Download
+            <Download aria-hidden="true" /> Cetak label
           </button>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 animate-fade-slide-left">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+      {loading ? (
+        <TallySkeleton />
+      ) : (
+      <div className="tally" role="group" aria-label="Saring status pesanan">
+        {(
+          [
+            ["all", "Semua", tally.all],
+            ["pending", "Menunggu", tally.pending],
+            ["packing", "Dikemas", tally.packing],
+            ["sent", "Terkirim", tally.sent],
+            ["hnr", "HnR", tally.hnr],
+          ] as const
+        ).map(([key, label, count]) => (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={statusFilter === key}
+            onClick={() => setStatusFilter(key)}
+          >
+            <span className="k">{label}</span>
+            <span className="v">{count}</span>
+          </button>
+        ))}
+      </div>
+      )}
+
+      <div className="filters">
+        <label>
+          <span className="sr-only">Cari pesanan</span>
           <input
-            type="text"
-            placeholder="Cari nama atau nomor HP..."
-            className="w-full pl-10 pr-4 py-2 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none text-sm text-black font-medium placeholder:text-gray-400"
+            type="search"
+            placeholder="Nama atau 4 digit HP"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-        </div>
-        <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-xl">
-          <Filter className="text-gray-400 w-4 h-4 shrink-0" />
-          <label className="flex items-center gap-1.5 whitespace-nowrap cursor-pointer">
+        </label>
+        <div className="checks">
+          <label>
             <input
               type="checkbox"
               checked={paidFilter}
               onChange={(e) => setPaidFilter(e.target.checked)}
-              className="accent-green-600 w-4 h-4"
             />
-            <span className="text-sm font-medium text-gray-700">Lunas</span>
+            Lunas
           </label>
-          <label className="flex items-center gap-1.5 whitespace-nowrap cursor-pointer">
+          <label>
             <input
               type="checkbox"
               checked={keepFilter}
               onChange={(e) => setKeepFilter(e.target.checked)}
-              className="accent-indigo-600 w-4 h-4"
             />
-            <span className="text-sm font-medium text-gray-700">Keep</span>
+            Keep
           </label>
-          <select
-            className="w-full bg-transparent border-none focus:ring-0 outline-none text-sm font-medium text-gray-700"
-            value={statusFilter}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-              setStatusFilter(e.target.value as OrderDocument["status"] | "all")
-            }
-          >
-            <option value="all">Semua Status</option>
-            <option value="pending">Pending</option>
-            <option value="packing">Packing</option>
-            <option value="sent">Sent</option>
-            <option value="hnr">HnR</option>
-          </select>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="dates">
           <DatePicker
             selected={startDate}
             onChange={(date: Date | null) => setStartDate(date)}
@@ -525,8 +559,9 @@ const ItemListScreen: React.FC = () => {
             endDate={endDate}
             placeholderText="Dari tanggal"
             dateFormat="dd/MM/yyyy"
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="field"
             wrapperClassName="w-full"
+            portalId="datepicker-portal"
             isClearable
           />
           <DatePicker
@@ -538,239 +573,198 @@ const ItemListScreen: React.FC = () => {
             minDate={startDate ?? undefined}
             placeholderText="Sampai tanggal"
             dateFormat="dd/MM/yyyy"
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="field"
             wrapperClassName="w-full"
+            portalId="datepicker-portal"
             isClearable
           />
         </div>
       </div>
 
-      {/* Omzet Banner */}
-      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between animate-fade-up">
-        <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">
-          Omzet dari tanggal {startDate ? startDate.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "awal"} {endDate ? `--> ${endDate.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}` : ""}
-        </p>
-        <p className="text-xl font-extrabold text-blue-600">
-          Rp {omzetWithoutUnique.toLocaleString("id-ID")} ({activeOrders.length} pesanan)
-        </p>
-      </div>
-
-      {/* Grid of Orders */}
       {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <CardSkeleton />
+      ) : loadError ? (
+        <div className="state state-error" role="alert">
+          <h2>{loadError}</h2>
+          <p>Data terakhir tidak sempat tampil.</p>
+          <button type="button" className="btn" style={{ marginTop: 12 }} onClick={fetchOrders}>
+            Muat lagi
+          </button>
+        </div>
+      ) : filteredOrders.length === 0 ? (
+        <div className="state">
+          <h2>Tidak ada pesanan di saringan ini</h2>
+          <p>Ubah tanggal atau status, atau tambah pesanan baru.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredOrders.map((order, idx) => (
-            <div
+        <>
+        <Pager
+          id="list-top"
+          page={orderPage.page}
+          pages={orderPage.pages}
+          total={orderPage.total}
+          from={orderPage.from}
+          to={orderPage.to}
+          onPage={(next) => goToListPage(orderPage.setPage, next)}
+        />
+        <div className="order-grid">
+          {orderPage.slice.map((order) => {
+            const status = statusCopy(order.status);
+            const pay =
+              (order.orders?.reduce((sum, item) => sum + (item.price || 0), 0) || 0) +
+              (order.unique_code || 0) +
+              (order.is_packing_fee_applied ? 2000 : 0);
+            return (
+            <article
               id={`order-card-${order.id}`}
               key={order.id}
-              style={{ animationDelay: `${Math.min(idx * 35, 400)}ms` }}
-              className={`bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 animate-fade-up overflow-hidden flex flex-col group ${order.is_hnr ? "opacity-50 grayscale" : ""}`}
+              className={`order-card${order.is_hnr ? " is-hnr" : ""}`}
             >
               {/* Order Header */}
-              <div className="p-4 border-b border-gray-50 flex justify-between items-start gap-2">
-                <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <h3 className="font-bold text-gray-900 truncate">
-                    {order.name}
-                  </h3>
-                  <span className="animate-pop-in inline-flex">
+              <header>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="truncate">{order.name || "Tanpa nama"}</h2>
                     {getPaymentBadge(order.payment_status)}
-                  </span>
-                </div>
-                  <p className="text-[10px] text-gray-400 font-mono tracking-tighter">
-                    ID: {order.id.slice(-6).toUpperCase()} •{" "}
-                    {order.last_4_digits_phone}
-                    {order.unique_code !== undefined &&
-                    order.unique_code !== null
-                      ? ` • Kode Unik: Rp ${order.unique_code.toLocaleString()}`
-                      : ""}
-                  </p>
-                  <p className="text-[10px] text-gray-400 font-mono tracking-tighter">
-                    Berat: {(order.total_weight_kg ?? 0).toLocaleString("id-ID")}kg
-                  </p>
-                </div>
-                <div
-                  className={`shrink-0 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border flex items-center gap-1 shadow-sm ${getStatusColor(order.status)}`}
-                >
-                  {getStatusIcon(order.status)}
-                  {order.status}
-                </div>
-              </div>
-
-              {/* Order Content */}
-              <div className="p-4 flex-1 space-y-4">
-                <div className="space-y-1.5">
-                  {order.orders?.slice(0, 3).map((item, idx) => (
-                    <div
-                      key={idx}
-                      style={{ animationDelay: `${idx * 60}ms` }}
-                      className="flex justify-between items-center text-xs bg-gray-50/50 p-2 rounded-lg border border-gray-50 group-hover:border-gray-100 transition-colors animate-fade-slide-left"
-                    >
-                      <span className="text-gray-600 truncate mr-3 font-medium">
-                        {item.description}
-                      </span>
-                      <span className="font-black text-gray-900 shrink-0">
-                        Rp {item.price?.toLocaleString()}
-                      </span>
-                    </div>
-                  ))}
-                  {(order.orders?.length ?? 0) > 3 && (
-                    <p className="text-[10px] text-gray-400 font-medium pl-1">
-                      +{(order.orders?.length ?? 0) - 3} buku lainnya…
-                    </p>
-                  )}
-                  <button
-                    onClick={() => setBookDetailOrder(order)}
-                    className="text-[10px] font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
-                  >
-                    Lihat Semua Buku
-                  </button>
-                </div>
-
-                <div className="pt-3 border-t border-gray-50 flex justify-between items-end">
-                  <div className="space-y-1">
-                    <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wide flex items-center gap-1">
-                      <Truck className="w-3 h-3" />
-                      {order.delivery_type}
-                    </div>
-                    <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wide flex items-center gap-1">
-                      <CreditCard className="w-3 h-3" />
-                      {order.payment_type || "Manual"}
-                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-0.5">
-                      Total Bayar
+                  <p className="meta">
+                    {order.id.slice(-6)} · {order.last_4_digits_phone || "----"}
+                    {order.unique_code != null
+                      ? ` · unik Rp ${order.unique_code.toLocaleString("id-ID")}`
+                      : ""}
+                    <br />
+                    <span className="weight">
+                      {(order.total_weight_kg ?? 0).toLocaleString("id-ID")}
+                      {"\u00A0"}
+                      kg
+                    </span>
+                  </p>
+                </div>
+                <span className={`pill ${status.pill}`}>{status.label}</span>
+              </header>
+
+              <div className="body">
+                {order.orders?.slice(0, 3).map((item, idx) => (
+                  <div className="line" key={idx}>
+                    <span className="truncate">{item.description}</span>
+                    <span className="num">Rp {item.price?.toLocaleString("id-ID")}</span>
+                  </div>
+                ))}
+                {(order.orders?.length ?? 0) > 3 && (
+                  <p className="page-note">+{(order.orders?.length ?? 0) - 3} buku lagi</p>
+                )}
+                <button type="button" className="btn btn-quiet" onClick={() => setBookDetailOrder(order)}>
+                  Lihat semua buku
+                </button>
+                <div className="pay">
+                  <p className="page-note" style={{ margin: 0 }}>
+                    {order.delivery_type === "Manual"
+                      ? "Kirim sendiri"
+                      : order.delivery_type || "Ekspedisi belum diisi"}
+                    {order.payment_type ? ` · Cara bayar ${order.payment_type}` : ""}
+                  </p>
+                  <div>
+                    <p className="page-note" style={{ margin: 0, textAlign: "right" }}>
+                      Total bayar
                     </p>
-                    <p className="text-lg font-black text-blue-600 leading-none transition-transform duration-300 group-hover:scale-105 origin-right">
-                      Rp{" "}
-                      {(
-                        (order.orders?.reduce(
-                          (sum, i) => sum + (i.price || 0),
-                          0,
-                        ) || 0) +
-                        (order.unique_code || 0) +
-                        (order.is_packing_fee_applied ? 2000 : 0)
-                      ).toLocaleString()}
-                    </p>
+                    <strong className="num">Rp {pay.toLocaleString("id-ID")}</strong>
                   </div>
                 </div>
               </div>
 
               {/* Order Actions */}
-              <div className="px-4 py-3 bg-gray-50/80 backdrop-blur-sm border-t border-gray-100 flex justify-between items-center gap-2">
-                <div className="flex gap-1">
+              <footer>
+                <div className="actions">
                   <button
+                    type="button"
+                    className="icon-btn"
+                    aria-label="Lihat pesanan"
+                    onClick={() => {
+                      setSelectedOrder(order);
+                      setIsDetailModalVisible(true);
+                    }}
+                  >
+                    <Eye aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    aria-label="Ubah pesanan"
                     onClick={() => {
                       setSelectedOrder(order);
                       setLastEditedOrderId(order.id);
                       setIsAddModalVisible(true);
                     }}
-                    className="p-2 text-amber-600 hover:bg-amber-100 active:scale-90 rounded-xl transition-all"
-                    title="Edit"
                   >
-                    <Eye className="w-5 h-5" />
+                    <Edit2 aria-hidden="true" />
                   </button>
                   <button
-                    onClick={() => {
-                      setSelectedOrder(order);
-                      setLastEditedOrderId(order.id);
-                      setIsAddModalVisible(true);
-                    }}
-                    className="p-2 text-amber-600 hover:bg-amber-100 active:scale-90 rounded-xl transition-all"
-                    title="Edit"
-                  >
-                    <Edit2 className="w-5 h-5" />
-                  </button>
-                  <button
+                    type="button"
+                    className="icon-btn danger"
+                    aria-label="Hapus pesanan"
                     onClick={() => handleDeleteOrder(order.id)}
-                    className="p-2 text-red-600 hover:bg-red-100 active:scale-90 rounded-xl transition-all"
-                    title="Hapus"
                   >
-                    <Trash2 className="w-5 h-5" />
+                    <Trash2 aria-hidden="true" />
                   </button>
                 </div>
-
-                <div className="flex gap-1">
+                <div className="actions">
                   <button
+                    type="button"
+                    className={order.is_keep ? "btn btn-primary" : "btn"}
                     onClick={() => toggleOrderKeep(order)}
-                    title={
-                      order.is_keep
-                        ? "Batalkan penandaan Keep"
-                        : "Tandai Keep"
-                    }
-                    className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl active:scale-95 transition-all border ${
-                      order.is_keep
-                        ? "bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700"
-                        : "bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50"
-                    }`}
                   >
-                    {order.is_keep ? "Cancel Keep" : "Keep"}
+                    {order.is_keep ? "Batalkan keep" : "Keep"}
                   </button>
                   {order.payment_status !== "full" && (
-                    <button
-                      onClick={() => toggleOrderHnr(order)}
-                      title={
-                        order.is_hnr
-                          ? "Batalkan penandaan HnR"
-                          : "Tandai HnR (tidak dihitung ke omzet & total pesanan)"
-                      }
-                      className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl active:scale-95 transition-all border ${
-                        order.is_hnr
-                          ? "bg-gray-800 text-white border-gray-800 hover:bg-gray-700"
-                          : "bg-white text-red-600 border-red-200 hover:bg-red-50"
-                      }`}
-                    >
-                      {order.is_hnr ? "Cancel HnR" : "HnR"}
+                    <button type="button" className="btn" onClick={() => toggleOrderHnr(order)}>
+                      {order.is_hnr ? "Batalkan HnR" : "HnR"}
                     </button>
                   )}
                   {order.status === "pending" && (
                     <button
+                      type="button"
+                      className="btn btn-primary"
                       onClick={() => updateOrderStatus(order.id, "packing")}
-                      className="px-4 py-2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-100 active:scale-95 transition-all"
                     >
-                      Pack
+                      Kemas
                     </button>
                   )}
                   {order.status === "packing" && (
                     <button
+                      type="button"
+                      className="btn btn-primary"
                       onClick={() => updateOrderStatus(order.id, "sent")}
-                      className="px-4 py-2 bg-green-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-green-700 shadow-lg shadow-green-100 active:scale-95 transition-all"
                     >
                       Kirim
                     </button>
                   )}
                   {order.status === "sent" && order.tracking_number && (
                     <a
+                      className="btn"
                       href={`https://cekresi.com/?noresi=${order.tracking_number}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-50 flex items-center shadow-sm active:scale-95 transition-all"
                     >
-                      <ExternalLink className="w-3 h-3 mr-1" /> Resi
+                      <ExternalLink aria-hidden="true" /> Resi
                     </a>
                   )}
                 </div>
-              </div>
-            </div>
-          ))}
+              </footer>
+            </article>
+            );
+          })}
         </div>
-      )}
-
-      {/* Empty State */}
-      {!loading && filteredOrders.length === 0 && (
-        <div className="bg-white rounded-3xl border border-dashed border-gray-300 p-12 text-center animate-fade-up">
-          <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 animate-soft-pulse">
-            <Search className="w-10 h-10 text-gray-300" />
-          </div>
-          <h3 className="text-xl font-bold text-gray-900">Tidak ada order</h3>
-          <p className="text-gray-500 mt-2">
-            Coba ganti filter atau cari kata kunci lain
-          </p>
-        </div>
+        {orderPage.pages > 1 && (
+          <Pager
+            page={orderPage.page}
+            pages={orderPage.pages}
+            total={orderPage.total}
+            from={orderPage.from}
+            to={orderPage.to}
+            onPage={(next) => goToListPage(orderPage.setPage, next)}
+          />
+        )}
+        </>
       )}
 
       {/* Modals */}
@@ -802,35 +796,26 @@ const ItemListScreen: React.FC = () => {
       {/* Book Detail Modal */}
       {bookDetailOrder && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          className="dialog-scrim"
           onClick={() => setBookDetailOrder(null)}
         >
           <div
-            className="bg-white rounded-xl shadow-lg max-w-sm w-full max-h-[80vh] overflow-hidden"
+            className="dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="book-detail-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-3 py-2 border-b border-gray-100">
-              <h3 className="text-sm font-bold text-gray-900">
-                {bookDetailOrder.name || "Tanpa Nama"} ({bookDetailOrder.last_4_digits_phone || "****"})
-              </h3>
-            </div>
-            <div className="px-3 py-2 overflow-y-auto max-h-[60vh]">
-              <ul className="space-y-1">
-                {bookDetailOrder.orders?.map((order, index) => (
-                  <li
-                    key={index}
-                    className="text-xs font-semibold text-gray-700"
-                  >
-                    {order.description || "-"}
-                  </li>
-                )) || <li className="text-xs text-gray-400">Tidak ada buku</li>}
-              </ul>
-            </div>
-            <div className="px-3 py-2 border-t border-gray-100 flex justify-end">
-              <button
-                onClick={() => setBookDetailOrder(null)}
-                className="px-3 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-              >
+            <h2 id="book-detail-title">
+              {bookDetailOrder.name || "Tanpa nama"} ({bookDetailOrder.last_4_digits_phone || "----"})
+            </h2>
+            <ul className="mt-3 space-y-1">
+              {bookDetailOrder.orders?.map((order, index) => (
+                <li key={index}>{order.description || "-"}</li>
+              )) || <li>Tidak ada buku</li>}
+            </ul>
+            <div className="mt-4 flex justify-end">
+              <button type="button" className="btn" onClick={() => setBookDetailOrder(null)}>
                 Tutup
               </button>
             </div>

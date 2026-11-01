@@ -1,22 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import FirestoreService, { type HistoricalDataDocument } from '../services/FirestoreService';
-import { 
-  Plus, 
-  Trash2, 
-  X,
-  Save,
-  Loader2,
-  History,
-  TrendingUp,
-  TrendingDown,
-  BookOpen
-} from 'lucide-react';
+import { Plus, Trash2, X } from "lucide-react";
+import { KpiSkeleton, Pager, TableSkeleton, goToListPage, usePage } from "../components/ListPage.tsx";
 
 const COLLECTION_NAME = 'sales_history';
 
 const SalesHistoryScreen = () => {
   const [historyData, setHistoryData] = useState<HistoricalDataDocument[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -29,6 +21,7 @@ const SalesHistoryScreen = () => {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const data = await FirestoreService.getCollection(COLLECTION_NAME);
       const sortedData = (data as HistoricalDataDocument[]).sort((a, b) => {
         const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
@@ -38,6 +31,7 @@ const SalesHistoryScreen = () => {
       setHistoryData(sortedData);
     } catch (error) {
       console.error('Error fetching history data:', error);
+      setLoadError("Riwayat gagal dimuat.");
     } finally {
       setLoading(false);
     }
@@ -103,191 +97,178 @@ const SalesHistoryScreen = () => {
     }
   };
 
+  const historyPage = usePage(historyData, historyData[0]?.id ?? "");
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">History Penjualan Lama</h1>
-        <button 
-          onClick={() => setIsFormVisible(true)}
-          className="w-full sm:w-auto flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Tambah History
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <h1 className="page-title">Riwayat</h1>
+          <p className="page-note">Angka periode lama, di luar pesanan yang masih di meja.</p>
+        </div>
+        <button type="button" className="btn btn-primary" onClick={() => setIsFormVisible(true)}>
+          <Plus aria-hidden="true" /> Catat periode
         </button>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-2 sm:mb-4 text-blue-600">
-            <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" />
-            <span className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wider">Revenue</span>
+      {loading ? (
+        <KpiSkeleton cells={4} label="Memuat riwayat" quiet />
+      ) : !loadError && (
+        <div className="kpi cols-4" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
+          <div>
+            <p className="k">Omzet tercatat</p>
+            <p className="v num">Rp {totals.revenue.toLocaleString("id-ID")}</p>
           </div>
-          <p className="text-lg sm:text-2xl font-bold">Rp {totals.revenue.toLocaleString()}</p>
-        </div>
-        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-2 sm:mb-4 text-red-600">
-            <TrendingDown className="w-5 h-5 sm:w-6 sm:h-6" />
-            <span className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wider">Capital</span>
+          <div>
+            <p className="k">Modal</p>
+            <p className="v num">Rp {totals.capital.toLocaleString("id-ID")}</p>
           </div>
-          <p className="text-lg sm:text-2xl font-bold">Rp {totals.capital.toLocaleString()}</p>
-        </div>
-        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-2 sm:mb-4 text-green-600">
-            <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" />
-            <span className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wider">Profit</span>
+          <div>
+            <p className="k">Sisa</p>
+            <p className={`v lead num${totals.profit < 0 ? " bad" : ""}`}>Rp {totals.profit.toLocaleString("id-ID")}</p>
           </div>
-          <p className="text-lg sm:text-2xl font-bold text-green-600">Rp {totals.profit.toLocaleString()}</p>
-        </div>
-        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-2 sm:mb-4 text-purple-600">
-            <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
-            <span className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wider">Books</span>
+          <div>
+            <p className="k">Buku</p>
+            <p className="v num">{totals.books}</p>
           </div>
-          <p className="text-lg sm:text-2xl font-bold">{totals.books} Pcs</p>
         </div>
-      </div>
+      )}
 
       {isFormVisible && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-2xl">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Tambah History</h2>
-              <button onClick={() => setIsFormVisible(false)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all">
-                <X className="w-6 h-6" />
+        <div className="dialog-scrim" onClick={() => setIsFormVisible(false)}>
+          <div
+            className="dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="history-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="page-head" style={{ marginBottom: 16 }}>
+              <h2 id="history-title">Catat periode</h2>
+              <button type="button" className="icon-btn" aria-label="Tutup" onClick={() => setIsFormVisible(false)}>
+                <X aria-hidden="true" />
               </button>
             </div>
-            <form onSubmit={handleSave} className="space-y-5">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Deskripsi/Bulan</label>
+            <form onSubmit={handleSave} className="stack">
+              <label>
+                Periode
                 <input
                   type="text"
                   required
-                  placeholder="Contoh: Penjualan Januari 2024"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-gray-50/50"
+                  placeholder="Januari 2024"
+                  className="field"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Modal (Capital)</label>
+              </label>
+              <div className="pair">
+                <label>
+                  Modal
                   <input
                     type="number"
                     required
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-gray-50/50"
+                    min="0"
+                    className="field"
                     value={capital}
                     onChange={(e) => setCapital(e.target.value)}
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Pemasukan</label>
+                </label>
+                <label>
+                  Omzet
                   <input
                     type="number"
                     required
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-gray-50/50"
+                    min="0"
+                    className="field"
                     value={revenue}
                     onChange={(e) => setRevenue(e.target.value)}
                   />
-                </div>
+                </label>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Total Buku Terjual</label>
+              <label>
+                Buku terjual
                 <input
                   type="number"
                   required
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-gray-50/50"
+                  min="0"
+                  className="field"
                   value={totalBooks}
                   onChange={(e) => setTotalBooks(e.target.value)}
                 />
-              </div>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full flex items-center justify-center px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all disabled:bg-blue-400 font-bold shadow-lg shadow-blue-200"
-              >
-                {submitting ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Save className="w-5 h-5 mr-2" />}
-                Simpan Data
+              </label>
+              <button type="submit" className="btn btn-primary" disabled={submitting}>
+                {submitting ? "Menyimpan" : "Simpan"}
               </button>
             </form>
           </div>
         </div>
       )}
 
+      {loadError && (
+        <div className="state state-error" role="alert">
+          <h2>{loadError}</h2>
+          <button type="button" className="btn" style={{ marginTop: 12 }} onClick={fetchData}>
+            Muat lagi
+          </button>
+        </div>
+      )}
+
       {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <TableSkeleton cols={6} label="Memuat riwayat. Periode lama sedang diambil." />
+      ) : historyData.length === 0 ? (
+        <div className="state">
+          <h2>Belum ada periode</h2>
+          <p>Catat omzet lama yang tidak ada di meja sekarang.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          {/* Desktop View */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-600">Deskripsi</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-600">Revenue</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-600">Capital</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-600">Profit</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-600">Books</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-right">Actions</th>
+        <>
+        <Pager
+          id="list-top"
+          page={historyPage.page}
+          pages={historyPage.pages}
+          total={historyPage.total}
+          from={historyPage.from}
+          to={historyPage.to}
+          onPage={(next) => goToListPage(historyPage.setPage, next)}
+        />
+        <div className="panel" style={{ overflowX: "auto" }}>
+          <table className="ledger">
+            <thead>
+              <tr>
+                <th>Periode</th>
+                <th className="num">Omzet</th>
+                <th className="num">Modal</th>
+                <th className="num">Sisa</th>
+                <th className="num">Buku</th>
+                <th className="num"><span className="sr-only">Aksi</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {historyPage.slice.map((item) => (
+                <tr key={item.id}>
+                  <td>{item.description}</td>
+                  <td className="num">Rp {item.revenue.toLocaleString("id-ID")}</td>
+                  <td className="num">Rp {item.capital.toLocaleString("id-ID")}</td>
+                  <td className={`num${item.profit < 0 ? " neg" : ""}`}>
+                    Rp {item.profit.toLocaleString("id-ID")}
+                  </td>
+                  <td className="num">{item.total_books}</td>
+                  <td className="num">
+                    <button
+                      type="button"
+                      className="icon-btn danger"
+                      aria-label={`Hapus ${item.description}`}
+                      onClick={() => handleDelete(item.id)}
+                    >
+                      <Trash2 aria-hidden="true" />
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {historyData.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-gray-900">{item.description}</td>
-                    <td className="px-6 py-4 font-bold text-blue-600">Rp {item.revenue.toLocaleString()}</td>
-                    <td className="px-6 py-4 text-gray-500 text-sm">Rp {item.capital.toLocaleString()}</td>
-                    <td className="px-6 py-4 font-bold text-green-600">Rp {item.profit.toLocaleString()}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{item.total_books} Pcs</td>
-                    <td className="px-6 py-4 text-right">
-                      <button onClick={() => handleDelete(item.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile View */}
-          <div className="md:hidden divide-y divide-gray-100">
-            {historyData.map((item) => (
-              <div key={item.id} className="p-4 space-y-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-bold text-gray-900">{item.description}</p>
-                    <p className="text-xs text-gray-500">{item.total_books} Pcs terjual</p>
-                  </div>
-                  <button onClick={() => handleDelete(item.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-blue-50 rounded-xl p-3">
-                    <p className="text-[10px] text-blue-600 font-semibold uppercase mb-1">Revenue</p>
-                    <p className="font-bold text-blue-700 text-sm">Rp {item.revenue.toLocaleString()}</p>
-                  </div>
-                  <div className="bg-green-50 rounded-xl p-3">
-                    <p className="text-[10px] text-green-600 font-semibold uppercase mb-1">Profit</p>
-                    <p className="font-bold text-green-700 text-sm">Rp {item.profit.toLocaleString()}</p>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center text-xs text-gray-500 px-1">
-                  <span>Capital: Rp {item.capital.toLocaleString()}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {historyData.length === 0 && (
-            <div className="px-6 py-12 text-center text-gray-500">
-              <History className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-              Belum ada data history penjualan
-            </div>
-          )}
+              ))}
+            </tbody>
+          </table>
         </div>
+        </>
       )}
     </div>
   );

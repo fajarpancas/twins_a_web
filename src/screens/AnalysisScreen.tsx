@@ -11,18 +11,19 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import { ChartColumn, RefreshCcw } from "lucide-react";
+import { RefreshCcw } from "lucide-react";
 import FirestoreService, {
   type OrderDocument,
 } from "../services/FirestoreService";
+import { ChartSkeleton, KpiSkeleton } from "../components/ListPage.tsx";
 
 const STATUS_META: {
   key: "terjual" | "hnr";
   label: string;
   color: string;
 }[] = [
-  { key: "terjual", label: "Terjual", color: "#22c55e" },
-  { key: "hnr", label: "HnR", color: "#ef4444" },
+  { key: "terjual", label: "Terjual", color: "#1b6c80" },
+  { key: "hnr", label: "HnR", color: "#c4242a" },
 ];
 
 const TERJUAL_STATUSES: OrderDocument["status"][] = [
@@ -140,107 +141,81 @@ const AnalysisScreen: React.FC = () => {
   );
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="page">
+      <div className="page-head">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-            Analisis Penjualan
-          </h1>
-          <p className="text-gray-500 mt-1 text-sm">
-            Grafik penjualan per status order
-          </p>
+          <h1 className="page-title">Analisis</h1>
+          <p className="page-note">Omzet terjual dibanding HnR, per hari atau per bulan.</p>
         </div>
-        <div className="flex gap-2">
-          <div className="flex bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+        <div className="actions">
+          <div className="seg" role="group" aria-label="Bentuk grafik">
             {(["line", "bar"] as ChartType[]).map((c) => (
               <button
                 key={c}
+                type="button"
+                aria-pressed={chartType === c}
                 onClick={() => setChartType(c)}
-                className={`px-4 py-2 text-sm font-bold transition-colors ${
-                  chartType === c
-                    ? "bg-gray-900 text-white"
-                    : "text-gray-700 hover:bg-gray-50"
-                }`}
               >
                 {c === "line" ? "Garis" : "Batang"}
               </button>
             ))}
           </div>
-          <div className="flex bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+          <div className="seg" role="group" aria-label="Periode">
             {(["daily", "monthly"] as Mode[]).map((m) => (
               <button
                 key={m}
+                type="button"
+                aria-pressed={mode === m}
                 onClick={() => setMode(m)}
-                className={`px-4 py-2 text-sm font-bold transition-colors ${
-                  mode === m
-                    ? "bg-blue-600 text-white"
-                    : "text-gray-700 hover:bg-gray-50"
-                }`}
               >
                 {m === "daily" ? "Harian" : "Bulanan"}
               </button>
             ))}
           </div>
-          <button
-            onClick={fetchOrders}
-            className="flex items-center px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-all shadow-sm text-sm"
-          >
-            <RefreshCcw className="w-4 h-4 mr-2" /> Refresh
+          <button type="button" className="btn" onClick={fetchOrders}>
+            <RefreshCcw aria-hidden="true" /> Muat lagi
           </button>
         </div>
       </div>
 
-      {/* Totals per status */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-            Total Semua
-          </p>
-          <p className="text-xl font-extrabold text-gray-900 mt-1">
-            Rp {grandTotal.toLocaleString("id-ID")}
-          </p>
-          <p className="text-xs text-gray-400 mt-0.5">{orders.length} order</p>
+      {loading ? (
+        <KpiSkeleton cells={3} label="Memuat analisis" quiet />
+      ) : (
+      <div className="kpi cols-3" style={{ gridTemplateColumns: "1.4fr 1fr 1fr" }}>
+        <div>
+          <p className="k">Semua pesanan</p>
+          <p className="v lead num">Rp {grandTotal.toLocaleString("id-ID")}</p>
+          <p className="s">{orders.length} pesanan</p>
         </div>
         {STATUS_META.map((meta) => (
-          <div
-            key={meta.key}
-            className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm"
-          >
-            <div className="flex items-center gap-1.5">
-              <span
-                className="w-2.5 h-2.5 rounded-full shrink-0"
-                style={{ backgroundColor: meta.color }}
-              />
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                {meta.label}
-              </p>
-            </div>
-            <p className="text-xl font-extrabold text-gray-900 mt-1">
+          <div key={meta.key}>
+            <p className="k">{meta.label}</p>
+            <p className={`v num${meta.key === "hnr" ? " bad" : ""}`}>
               Rp {(statusTotals.get(meta.key) || 0).toLocaleString("id-ID")}
             </p>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="s">
               {orders.filter((o) =>
                 meta.key === "hnr"
                   ? o.status === "hnr"
                   : TERJUAL_STATUSES.includes(o.status || "pending"),
               ).length}{" "}
-              order
+              pesanan
             </p>
           </div>
         ))}
       </div>
+      )}
 
-      {/* Chart */}
-      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+      <div className="panel chart-card">
         {loading ? (
-          <div className="flex items-center justify-center h-72">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div role="status" aria-label="Memuat analisis. Omzet per periode sedang dihitung.">
+            <p className="sr-only">Memuat analisis. Omzet per periode sedang dihitung.</p>
+            <ChartSkeleton />
           </div>
         ) : chartData.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-72 text-gray-400">
-            <ChartColumn className="w-10 h-10 mb-2" />
-            <p className="text-sm font-medium">Tidak ada data order</p>
+          <div className="state">
+            <h2>Belum ada pesanan untuk digambar</h2>
+            <p>Garis nol tampil setelah ada tanggal pesanan.</p>
           </div>
         ) : (
           <div className="w-full h-[26rem]">
@@ -250,12 +225,12 @@ const AnalysisScreen: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis
                     dataKey="label"
-                    tick={{ fontSize: 10 }}
+                    tick={{ fontSize: 12, fill: "#5d5f60" }}
                     interval="preserveStartEnd"
                     minTickGap={24}
                   />
                   <YAxis
-                    tick={{ fontSize: 10 }}
+                    tick={{ fontSize: 12, fill: "#5d5f60" }}
                     tickFormatter={(v: number) =>
                       v >= 1_000_000
                         ? `${(v / 1_000_000).toFixed(0)}jt`
@@ -274,7 +249,7 @@ const AnalysisScreen: React.FC = () => {
                   {STATUS_META.map((meta) => (
                     <Line
                       key={meta.key}
-                      type="monotone"
+                      type="linear"
                       dataKey={meta.key}
                       name={meta.label}
                       stroke={meta.color}
@@ -290,12 +265,12 @@ const AnalysisScreen: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis
                     dataKey="label"
-                    tick={{ fontSize: 10 }}
+                    tick={{ fontSize: 12, fill: "#5d5f60" }}
                     interval="preserveStartEnd"
                     minTickGap={24}
                   />
                   <YAxis
-                    tick={{ fontSize: 10 }}
+                    tick={{ fontSize: 12, fill: "#5d5f60" }}
                     tickFormatter={(v: number) =>
                       v >= 1_000_000
                         ? `${(v / 1_000_000).toFixed(0)}jt`

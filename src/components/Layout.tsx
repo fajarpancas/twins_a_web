@@ -1,15 +1,55 @@
-import React from 'react';
-import Sidebar from './Sidebar';
+import { useEffect, useState, type ReactNode } from "react";
+import Sidebar from "./Sidebar";
 
-const Layout = ({ children }: { children: React.ReactNode }) => {
+const Layout = ({ children }: { children: ReactNode }) => {
+  const [open, setOpen] = useState(false);
+  const today = new Date().toLocaleDateString("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
-    <div className="flex bg-gray-50 h-screen overflow-hidden relative">
-      <Sidebar />
-      <main className="flex-1 w-full overflow-y-auto lg:ml-0 p-4 sm:p-6 lg:p-8 pt-20 lg:pt-8">
-        <div className="max-w-6xl mx-auto">
+    <div className="app-shell">
+      <a className="skip" href="#work">
+        Lewati ke isi
+      </a>
+      <button
+        type="button"
+        className={`scrim${open ? " open" : ""}`}
+        aria-label="Tutup menu"
+        onClick={() => setOpen(false)}
+      />
+      <Sidebar open={open} onNavigate={() => setOpen(false)} />
+      <div className="app-column">
+        <header className="app-topbar">
+          <button
+            type="button"
+            className="nav-toggle"
+            aria-expanded={open}
+            aria-controls="side-nav"
+            onClick={() => setOpen((value) => !value)}
+          >
+            {open ? "Tutup" : "Menu"}
+          </button>
+          <p className="topbar-scope">Kasir buku</p>
+          <time className="topbar-date" dateTime={new Date().toISOString()}>
+            {today}
+          </time>
+        </header>
+        <main id="work" className="app-sheet">
           {children}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 };

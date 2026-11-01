@@ -1,10 +1,33 @@
-import React, { useState, useEffect } from "react";
-import { X, Plus, Trash2, Search } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { X, Trash2, Search } from "lucide-react";
 import FirestoreService, {
   type OrderDocument,
   type OrderItem,
   type StockOpnameDocument,
 } from "../services/FirestoreService";
+
+const blankBook = (): OrderItem => ({
+  id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+  description: "",
+  price: 0,
+});
+
+const isBlankBook = (item: OrderItem) => item.description.trim() === "";
+
+const withTrailingBlank = (list: OrderItem[]): OrderItem[] => {
+  const next = [...list];
+  while (
+    next.length > 1 &&
+    isBlankBook(next[next.length - 1]) &&
+    isBlankBook(next[next.length - 2])
+  ) {
+    next.pop();
+  }
+  if (next.length === 0 || !isBlankBook(next[next.length - 1])) {
+    next.push(blankBook());
+  }
+  return next;
+};
 
 interface AddOrderModalProps {
   visible: boolean;
@@ -50,6 +73,9 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
   const [activeSuggestionId, setActiveSuggestionId] = useState<string | null>(
     null,
   );
+  const trailingTitleRef = useRef<HTMLInputElement>(null);
+  const focusTrailing = useRef(false);
+  const bookCount = useRef(0);
 
   useEffect(() => {
     if (visible) {
@@ -64,16 +90,26 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
         setIsShippingPaid(initialData.is_shipping_paid || false);
         setIsPackingFeeApplied(initialData.is_packing_fee_applied ?? true);
         setTotalWeight(initialData.total_weight_kg ?? 0);
-        setItems(
-          initialData.orders && initialData.orders.length > 0
-            ? initialData.orders
-            : [{ id: Date.now().toString(), description: "", price: 0 }],
-        );
+        setItems(withTrailingBlank(initialData.orders ?? []));
       } else {
         resetForm();
       }
     }
   }, [visible, initialData]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (isSelectionModalVisible) {
+        setSelectionModalVisible(false);
+        return;
+      }
+      onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [visible, onClose, isSelectionModalVisible]);
 
   const fetchStockItems = async () => {
     try {
@@ -93,18 +129,11 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
     setIsShippingPaid(false);
     setIsPackingFeeApplied(true);
     setTotalWeight(0);
-    setItems([{ id: Date.now().toString(), description: "", price: 0 }]);
-  };
-
-  const handleAddItem = () => {
-    setItems([
-      ...items,
-      { id: Date.now().toString(), description: "", price: 0 },
-    ]);
+    setItems(withTrailingBlank([]));
   };
 
   const handleRemoveItem = (id: string) => {
-    setItems(items.filter((item) => item.id !== id));
+    setItems((prev) => withTrailingBlank(prev.filter((item) => item.id !== id)));
   };
 
   const handleUpdateItem = (
@@ -114,8 +143,10 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
     isManualChange = true,
   ) => {
     setItems((prevItems) =>
-      prevItems.map((item) =>
-        item.id === id ? { ...item, [field]: value } : item,
+      withTrailingBlank(
+        prevItems.map((item) =>
+          item.id === id ? { ...item, [field]: value } : item,
+        ),
       ),
     );
 
@@ -134,11 +165,12 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
     setSelectionModalVisible(true);
   };
 
-  const handleSelectStockItem = (stockItem: StockOpnameDocument) => {
-    if (activeItemId) {
-      setItems(
-        items.map((item) =>
-          item.id === activeItemId
+  const applyStock = (itemId: string, stockItem: StockOpnameDocument) => {
+    focusTrailing.current = true;
+    setItems((prev) =>
+      withTrailingBlank(
+        prev.map((item) =>
+          item.id === itemId
             ? {
                 ...item,
                 description: stockItem.book_name,
@@ -147,9 +179,24 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
               }
             : item,
         ),
-      );
-      setSelectionModalVisible(false);
+      ),
+    );
+    setActiveSuggestionId(null);
+    setSelectionModalVisible(false);
+  };
+
+  useEffect(() => {
+    if (items.length > bookCount.current) {
+      trailingTitleRef.current?.scrollIntoView({ block: "nearest" });
     }
+    bookCount.current = items.length;
+    if (!focusTrailing.current) return;
+    focusTrailing.current = false;
+    trailingTitleRef.current?.focus();
+  }, [items]);
+
+  const handleSelectStockItem = (stockItem: StockOpnameDocument) => {
+    if (activeItemId) applyStock(activeItemId, stockItem);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -189,373 +236,359 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
   const filteredStock = stockItems.filter((item) =>
     item.book_name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+  const titledBooks = items.filter((item) => item.description.trim() !== "");
+  const booksTotal = titledBooks.reduce((sum, item) => sum + (item.price || 0), 0);
+  const packingFee = isPackingFeeApplied ? 2000 : 0;
+  const slipTotal = booksTotal + packingFee;
+  const money = (value: number) => `Rp ${value.toLocaleString("id-ID")}`;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity">
+    <div
+      className="dialog-scrim"
+      onClick={onClose}
+    >
       <form
         onSubmit={handleSubmit}
-        className="bg-white rounded-t-[2.5rem] sm:rounded-2xl w-full max-w-2xl max-h-[92vh] sm:max-h-[90vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-300"
+        className="order-sheet"
+        onClick={(event) => event.stopPropagation()}
       >
-        <div className="p-4 sm:p-6 border-b border-gray-100 flex justify-between items-center shrink-0">
-          <div className="flex-1 text-center sm:text-left">
-            <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4 sm:hidden" />
-            <h2 className="text-xl font-bold text-gray-800">
-              {initialData ? "Edit Order" : "Tambah Order Baru"}
-            </h2>
+        <header>
+          <div>
+            <h2>{initialData ? "Ubah pesanan" : "Tambah pesanan"}</h2>
+            <p>
+              {initialData
+                ? "Ubah pembeli, cara kirim, atau daftar bukunya."
+                : "Catat pembeli, cara kirim, dan buku yang dibawa."}
+            </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors absolute right-4 top-4 sm:static"
-          >
-            <X className="w-6 h-6 text-gray-500" />
+          <button type="button" className="icon-btn" aria-label="Tutup" onClick={onClose}>
+            <X aria-hidden="true" />
           </button>
-        </div>
+        </header>
 
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 sm:space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
-                Nama Customer
-              </label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Contoh: Budi Santoso"
-                className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-black placeholder:text-gray-400"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
-                4 Digit No HP
-              </label>
-              <input
-                type="text"
-                required
-                maxLength={4}
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="0000"
-                className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono text-black placeholder:text-gray-400"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
-                Ekspedisi
-              </label>
-              <div className="relative">
-                <select
-                  value={deliveryType}
-                  onChange={(e) => setDeliveryType(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none appearance-none font-bold text-gray-700 transition-all"
-                >
-                  <option value="Manual">Manual</option>
-                  <option value="Shopee">Shopee</option>
-                </select>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
-                Status Pembayaran
-              </label>
-              <select
-                value={paymentStatus}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                  setPaymentStatus(
-                    e.target.value as OrderDocument["payment_status"],
-                  )
-                }
-                className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none appearance-none font-bold text-gray-700 transition-all"
-              >
-                <option value="none">Belum Bayar</option>
-                <option value="half">DP</option>
-                <option value="full">Lunas</option>
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
-                Berat Total (kg)
-              </label>
-              <div className="relative">
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="0"
-                  value={totalWeight || ""}
-                  onChange={(e) =>
-                    setTotalWeight(parseFloat(e.target.value) || 0)
-                  }
-                  className="w-full px-4 py-3 pr-12 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-gray-700"
-                />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 pointer-events-none">
-                  kg
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {deliveryType === "Manual" && (
-            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
-              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
-                Alamat Pengiriman
-              </label>
-              <textarea
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Masukkan alamat lengkap..."
-                className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none min-h-[100px] transition-all"
-              />
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <label
-              className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer ${isShippingPaid ? "bg-blue-50 border-blue-500 shadow-sm" : "bg-gray-50 border-transparent hover:border-gray-200"}`}
-            >
-              <div
-                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${isShippingPaid ? "bg-blue-600 border-blue-600" : "bg-white border-gray-300"}`}
-              >
-                {isShippingPaid && (
-                  <div className="w-2 h-2 bg-white rounded-full" />
-                )}
-              </div>
-              <input
-                type="checkbox"
-                checked={isShippingPaid}
-                onChange={(e) => setIsShippingPaid(e.target.checked)}
-                className="hidden"
-              />
-              <span className="text-sm font-bold text-gray-700">
-                Ongkir Sudah Bayar
-              </span>
-            </label>
-            <label
-              className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer ${isPackingFeeApplied ? "bg-blue-50 border-blue-500 shadow-sm" : "bg-gray-50 border-transparent hover:border-gray-200"}`}
-            >
-              <div
-                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${isPackingFeeApplied ? "bg-blue-600 border-blue-600" : "bg-white border-gray-300"}`}
-              >
-                {isPackingFeeApplied && (
-                  <div className="w-2 h-2 bg-white rounded-full" />
-                )}
-              </div>
-              <input
-                type="checkbox"
-                checked={isPackingFeeApplied}
-                onChange={(e) => setIsPackingFeeApplied(e.target.checked)}
-                className="hidden"
-              />
-              <span className="text-sm font-bold text-gray-700">
-                Biaya Packing (2rb)
-              </span>
-            </label>
-          </div>
-
-          <div className="space-y-4 pt-4">
-            <div className="flex justify-between items-center">
-              <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
-                Daftar Buku
-              </label>
-              <button
-                type="button"
-                onClick={handleAddItem}
-                className="text-sm text-blue-600 font-black uppercase tracking-widest flex items-center gap-1 hover:bg-blue-50 px-3 py-1.5 rounded-xl transition-all"
-              >
-                <Plus className="w-4 h-4" /> Tambah
-              </button>
-            </div>
-            <div className="space-y-3">
-              {items.map((item) => (
-                <div
-                  key={item.id}
-                  className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-3"
-                >
-                  <div className="flex gap-2">
-                    <div className="flex-1 relative">
-                      <input
-                        type="text"
-                        placeholder="Judul Buku"
-                        value={item.description}
-                        onChange={(e) =>
-                          handleUpdateItem(
-                            item.id,
-                            "description",
-                            e.target.value,
-                          )
-                        }
-                        onFocus={() => {
-                          if (item.description.length > 0)
-                            setActiveSuggestionId(item.id);
-                        }}
-                        onBlur={() => {
-                          // Beri jeda sedikit agar onClick saran sempat tereksekusi
-                          setTimeout(() => {
-                            setActiveSuggestionId(null);
-                          }, 200);
-                        }}
-                        className="w-full px-4 py-2.5 bg-white border-none rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold text-black"
-                      />
-                      {activeSuggestionId === item.id &&
-                        item.description.length > 0 && (
-                          <div className="absolute z-[80] top-full left-0 w-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl max-h-48 overflow-y-auto">
-                            {stockItems
-                              .filter((stock) =>
-                                stock.book_name
-                                  .toLowerCase()
-                                  .includes(item.description.toLowerCase()),
-                              )
-                              .slice(0, 5)
-                              .map((stock) => (
-                                <button
-                                  key={stock.id}
-                                  type="button"
-                                  className="w-full px-4 py-3 text-left hover:bg-blue-50 text-sm text-black font-medium border-b border-gray-50 last:border-none transition-colors"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault(); // Mencegah onBlur input sebelum onClick selesai
-                                  }}
-                                  onClick={() => {
-                                    handleUpdateItem(
-                                      item.id,
-                                      "description",
-                                      stock.book_name,
-                                      false,
-                                    );
-                                    handleUpdateItem(
-                                      item.id,
-                                      "price",
-                                      stock.sell_price || stock.price,
-                                      false,
-                                    );
-                                    handleUpdateItem(
-                                      item.id,
-                                      "stockId",
-                                      stock.id,
-                                      false,
-                                    );
-                                    setActiveSuggestionId(null);
-                                  }}
-                                >
-                                  <div className="flex justify-between items-center">
-                                    <span className="truncate flex-1">
-                                      {stock.book_name}
-                                    </span>
-                                    <span className="text-xs text-blue-600 font-black ml-2 shrink-0">
-                                      Rp{" "}
-                                      {(
-                                        stock.sell_price || stock.price
-                                      ).toLocaleString()}
-                                    </span>
-                                  </div>
-                                </button>
-                              ))}
-                          </div>
-                        )}
-                      <button
-                        type="button"
-                        onClick={() => handleOpenSelection(item.id)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-gray-100 rounded-lg text-blue-600 transition-all"
-                      >
-                        <Search className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveItem(item.id)}
-                      className="p-2.5 text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold text-gray-400">Rp</span>
-                    <input
-                      type="number"
-                      placeholder="Harga"
-                      value={item.price || ""}
-                      onChange={(e) =>
-                        handleUpdateItem(
-                          item.id,
-                          "price",
-                          parseInt(e.target.value) || 0,
-                        )
-                      }
-                      className="flex-1 px-4 py-2.5 bg-white border-none rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-black text-blue-600"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="p-4 sm:p-6 border-t border-gray-100 bg-gray-50 shrink-0">
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-4 bg-blue-600 text-white font-black uppercase tracking-widest rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98]"
-          >
-            {loading ? (
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : initialData ? (
-              "Simpan Perubahan"
-            ) : (
-              "Buat Order"
-            )}
-          </button>
-        </div>
-      </form>
-
-      {/* Selection Modal */}
-      {isSelectionModalVisible && (
-        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-t-[2.5rem] sm:rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-300">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center shrink-0">
-              <h3 className="font-bold text-gray-800">Pilih Buku</h3>
-              <button
-                onClick={() => setSelectionModalVisible(false)}
-                className="p-2 hover:bg-gray-100 rounded-full"
-              >
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-            <div className="p-4 shrink-0">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+        <div className="sheet-body">
+          <section>
+            <h3>Pembeli</h3>
+            <div className="pair">
+              <label>
+                Nama
                 <input
                   type="text"
-                  placeholder="Cari buku..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm text-black font-medium"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Nama di nota"
+                  autoComplete="name"
                 />
+              </label>
+              <label>
+                4 digit HP
+                <input
+                  type="text"
+                  required
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  placeholder="0000"
+                  autoComplete="off"
+                />
+              </label>
+            </div>
+          </section>
+
+          <section>
+            <h3>Buku</h3>
+            <div className="book-list">
+                {items.map((item, index) => {
+                  const trailing = index === items.length - 1 && isBlankBook(item);
+                  const suggestions =
+                    activeSuggestionId === item.id && item.description.length > 0
+                      ? stockItems
+                          .filter((stock) =>
+                            stock.book_name
+                              .toLowerCase()
+                              .includes(item.description.toLowerCase()),
+                          )
+                          .slice(0, 5)
+                      : [];
+                  return (
+                    <div className="book-row" key={item.id}>
+                      <label>
+                        {index === 0 ? "Judul" : <span className="sr-only">Judul</span>}
+                        <input
+                          ref={trailing ? trailingTitleRef : undefined}
+                          type="text"
+                          placeholder={
+                            trailing && index > 0
+                              ? "Judul buku berikutnya"
+                              : "Ketik judul, atau cari di stok"
+                          }
+                          value={item.description}
+                          onChange={(e) =>
+                            handleUpdateItem(item.id, "description", e.target.value)
+                          }
+                          onKeyDown={(event) => {
+                            if (event.key !== "Enter") return;
+                            event.preventDefault();
+                            event.currentTarget
+                              .closest(".book-row")
+                              ?.querySelector<HTMLInputElement>(".book-price input")
+                              ?.focus();
+                          }}
+                          onFocus={() => {
+                            if (item.description.length > 0) setActiveSuggestionId(item.id);
+                          }}
+                          onBlur={() => {
+                            setTimeout(() => setActiveSuggestionId(null), 200);
+                          }}
+                        />
+                        {activeSuggestionId === item.id && item.description.length > 0 && (
+                          <ul className="suggest">
+                            {suggestions.length === 0 ? (
+                              <li className="suggest-empty">Tidak ada di stok. Harga diisi sendiri.</li>
+                            ) : (
+                              suggestions.map((stock) => (
+                                <li key={stock.id}>
+                                  <button
+                                    type="button"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => applyStock(item.id, stock)}
+                                  >
+                                    <span>{stock.book_name}</span>
+                                    <span className="num">
+                                      {money(stock.sell_price || stock.price)}
+                                    </span>
+                                  </button>
+                                </li>
+                              ))
+                            )}
+                          </ul>
+                        )}
+                      </label>
+                      <label className="book-price">
+                        {index === 0 ? "Harga" : <span className="sr-only">Harga</span>}
+                        <span className="affix">
+                          <span>Rp</span>
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            value={item.price || ""}
+                            onChange={(e) =>
+                              handleUpdateItem(item.id, "price", parseInt(e.target.value) || 0)
+                            }
+                            onKeyDown={(event) => {
+                              if (event.key !== "Enter") return;
+                              event.preventDefault();
+                              trailingTitleRef.current?.focus();
+                            }}
+                          />
+                        </span>
+                      </label>
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        aria-label={`Cari ${item.description || "buku"} di stok`}
+                        onClick={() => handleOpenSelection(item.id)}
+                      >
+                        <Search aria-hidden="true" />
+                      </button>
+                      {trailing ? (
+                        <span />
+                      ) : (
+                        <button
+                          type="button"
+                          className="icon-btn danger"
+                          aria-label="Hapus baris buku"
+                          onClick={() => handleRemoveItem(item.id)}
+                        >
+                          <Trash2 aria-hidden="true" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+          </section>
+
+          <section>
+            <h3>Kirim dan bayar</h3>
+            <div className="pair">
+              <div className="choice">
+                <span>Ekspedisi</span>
+                <div className="seg stretch" role="group" aria-label="Ekspedisi">
+                  <button
+                    type="button"
+                    aria-pressed={deliveryType === "Manual"}
+                    onClick={() => setDeliveryType("Manual")}
+                  >
+                    Kirim sendiri
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={deliveryType === "Shopee"}
+                    onClick={() => setDeliveryType("Shopee")}
+                  >
+                    Shopee
+                  </button>
+                </div>
+                <p>
+                  {deliveryType === "Manual"
+                    ? "Dikirim sendiri, alamat diisi di bawah."
+                    : "Resi mengikuti pesanan Shopee. Alamat tidak dicatat di sini."}
+                </p>
+              </div>
+              <div className="choice">
+                <span>Status bayar</span>
+                <div className="seg stretch" role="group" aria-label="Status bayar">
+                  {(
+                    [
+                      ["none", "Belum bayar"],
+                      ["half", "DP"],
+                      ["full", "Lunas"],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={paymentStatus === value}
+                      onClick={() => setPaymentStatus(value)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p>Ini status nota, bukan metode transfer.</p>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
-              {filteredStock.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => handleSelectStockItem(item)}
-                  className="w-full p-4 bg-white hover:bg-blue-50 border border-gray-100 rounded-2xl text-left transition-all group"
-                >
-                  <div className="font-bold text-gray-800 group-hover:text-blue-700 mb-1">
-                    {item.book_name}
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-400 font-mono">
-                      Stok: {item.stock}
-                    </span>
-                    <span className="text-sm font-black text-blue-600">
-                      Rp {(item.sell_price || item.price).toLocaleString()}
-                    </span>
-                  </div>
-                </button>
-              ))}
+
+            {deliveryType === "Manual" && (
+              <label>
+                Alamat pengiriman
+                <textarea
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Jalan, nomor, kecamatan"
+                  rows={2}
+                />
+              </label>
+            )}
+
+            <div className="pair ship-row">
+              <label>
+                Berat
+                <span className="affix">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0"
+                    value={totalWeight || ""}
+                    onChange={(e) => setTotalWeight(parseFloat(e.target.value) || 0)}
+                  />
+                  <span>kg</span>
+                </span>
+              </label>
+              <div className="ticks">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={isShippingPaid}
+                    onChange={(e) => setIsShippingPaid(e.target.checked)}
+                  />
+                  Ongkir sudah dibayar
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={isPackingFeeApplied}
+                    onChange={(e) => setIsPackingFeeApplied(e.target.checked)}
+                  />
+                  Tambah packing Rp 2.000
+                </label>
+              </div>
+            </div>
+          </section>
+
+        </div>
+
+        <footer className="slip">
+          <div>
+            <p>
+              {titledBooks.length} buku
+              {isPackingFeeApplied ? " · packing Rp 2.000" : " · tanpa packing"}
+              {initialData?.unique_code != null
+                ? ` · kode unik Rp ${initialData.unique_code.toLocaleString("id-ID")} belum masuk`
+                : " · kode unik ditambah saat disimpan"}
+            </p>
+            <strong className="num">{money(slipTotal)}</strong>
+          </div>
+          <div className="actions">
+            <button type="button" className="btn" onClick={onClose}>
+              Batal
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              {loading ? "Menyimpan…" : initialData ? "Simpan perubahan" : "Simpan pesanan"}
+            </button>
+          </div>
+        </footer>
+      </form>
+
+      {isSelectionModalVisible && (
+        <div
+          className="dialog-scrim picker-scrim"
+          onClick={() => setSelectionModalVisible(false)}
+        >
+          <div
+            className="order-sheet picker"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="stock-picker-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header>
+              <div>
+                <h2 id="stock-picker-title">Pilih dari stok</h2>
+                <p>Harga jual terisi otomatis. Stok tidak berkurang dari sini.</p>
+              </div>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label="Tutup daftar stok"
+                onClick={() => setSelectionModalVisible(false)}
+              >
+                <X aria-hidden="true" />
+              </button>
+            </header>
+            <div className="sheet-body">
+              <label>
+                Cari judul
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Judul buku"
+                  autoFocus
+                />
+              </label>
+              {filteredStock.length === 0 ? (
+                <p className="empty-books">Tidak ada judul itu di stok.</p>
+              ) : (
+                <ul className="stock-list">
+                  {filteredStock.map((item) => (
+                    <li key={item.id}>
+                      <button type="button" onClick={() => handleSelectStockItem(item)}>
+                        <span>
+                          <strong>{item.book_name}</strong>
+                          <span className="page-note">Stok {item.stock}</span>
+                        </span>
+                        <span className="num">{money(item.sell_price || item.price)}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
         </div>

@@ -1,16 +1,13 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { 
-  Plus, Search, Download, 
-  Trash2, Edit2, Package, 
-  TrendingUp, TrendingDown,
-  AlertCircle, X
-} from "lucide-react";
+import { Plus, Download, Trash2, Edit2, X } from "lucide-react";
 import * as XLSX from "xlsx";
 import FirestoreService, { type StockOpnameDocument } from "../services/FirestoreService";
+import { KpiSkeleton, Pager, SkeletonRows, goToListPage, usePage } from "../components/ListPage.tsx";
 
 const StockOpnameScreen: React.FC = () => {
   const [stock, setStock] = useState<StockOpnameDocument[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<StockOpnameDocument | null>(null);
@@ -27,11 +24,13 @@ const StockOpnameScreen: React.FC = () => {
 
   const fetchStock = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await FirestoreService.getCollection("stock_opname", "book_name", "asc");
       setStock(data as StockOpnameDocument[]);
     } catch (error) {
       console.error("Error fetching stock:", error);
+      setLoadError("Stok tidak terbaca.");
     } finally {
       setLoading(false);
     }
@@ -103,6 +102,8 @@ const StockOpnameScreen: React.FC = () => {
     );
   }, [stock, searchQuery]);
 
+  const stockPage = usePage(filteredStock, searchQuery);
+
   const stats = useMemo(() => {
     const totalItems = stock.reduce((sum, item) => sum + item.stock, 0);
     const totalValue = stock.reduce((sum, item) => sum + (item.price * item.stock), 0);
@@ -111,142 +112,137 @@ const StockOpnameScreen: React.FC = () => {
   }, [stock]);
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="page">
+      <div className="page-head">
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Stock Opname</h1>
-          <p className="text-sm text-gray-500 mt-1">Kelola inventori buku dan harga</p>
+          <h1 className="page-title">Stok</h1>
+          <p className="page-note">
+            {loading
+              ? "Menghitung rak."
+              : `${stats.lowStock} judul tinggal 5 eksemplar atau kurang.`}
+          </p>
         </div>
-        <div className="flex gap-2">
-          <button 
-            onClick={exportToExcel}
-            className="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-all shadow-sm"
-          >
-            <Download className="w-5 h-5 mr-2" /> Export
+        <div className="actions">
+          <button type="button" onClick={exportToExcel} className="btn">
+            <Download aria-hidden="true" /> Export
           </button>
-          <button 
+          <button
+            type="button"
+            className="btn btn-primary"
             onClick={() => {
               resetForm();
               setIsModalVisible(true);
             }}
-            className="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-100"
           >
-            <Plus className="w-5 h-5 mr-2" /> Tambah
+            <Plus aria-hidden="true" /> Tambah judul
           </button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-blue-50 rounded-xl text-blue-600 shrink-0">
-            <Package className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs md:text-sm text-gray-500 font-medium">Total Stok</p>
-            <p className="text-xl md:text-2xl font-bold text-gray-900">{stats.totalItems} <span className="text-xs font-normal text-gray-400">pcs</span></p>
-          </div>
+      {loading ? (
+        <KpiSkeleton cells={3} label="Memuat stok" />
+      ) : (
+      <div className="kpi cols-3" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+        <div>
+          <p className="k">Eksemplar di rak</p>
+          <p className="v lead">{stats.totalItems}</p>
         </div>
-        <div className="bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-green-50 rounded-xl text-green-600 shrink-0">
-            <TrendingUp className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs md:text-sm text-gray-500 font-medium">Nilai Inventori</p>
-            <p className="text-xl md:text-2xl font-bold text-gray-900">Rp {stats.totalValue.toLocaleString()}</p>
-          </div>
+        <div>
+          <p className="k">Nilai modal</p>
+          <p className="v num">Rp {stats.totalValue.toLocaleString("id-ID")}</p>
         </div>
-        <div className="bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-amber-50 rounded-xl text-amber-600 shrink-0">
-            <AlertCircle className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs md:text-sm text-gray-500 font-medium">Stok Menipis (≤5)</p>
-            <p className="text-xl md:text-2xl font-bold text-gray-900">{stats.lowStock} <span className="text-xs font-normal text-gray-400">judul</span></p>
-          </div>
+        <div>
+          <p className="k">Judul menipis</p>
+          <p className={`v num${stats.lowStock > 0 ? " bad" : ""}`}>{stats.lowStock}</p>
         </div>
       </div>
+      )}
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-        <input 
-          type="text" 
-          placeholder="Cari judul buku..."
-          className="w-full pl-12 pr-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all text-black font-medium placeholder:text-gray-400"
+      <label>
+        <span className="sr-only">Cari judul</span>
+        <input
+          type="search"
+          placeholder="Judul buku"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-      </div>
+      </label>
 
       {/* List/Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        {/* Desktop Table View */}
+      {loadError && (
+        <div className="state state-error" role="alert">
+          <h2>{loadError}</h2>
+          <button type="button" className="btn" style={{ marginTop: 12 }} onClick={fetchStock}>
+            Muat lagi
+          </button>
+        </div>
+      )}
+
+      {!loading && !loadError && stockPage.pages > 1 && (
+        <Pager
+          id="list-top"
+          page={stockPage.page}
+          pages={stockPage.pages}
+          total={stockPage.total}
+          from={stockPage.from}
+          to={stockPage.to}
+          onPage={(next) => goToListPage(stockPage.setPage, next)}
+        />
+      )}
+
+      <div className="panel">
         <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="ledger">
             <thead>
-              <tr className="bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wider">
-                <th className="px-6 py-4">Judul Buku</th>
-                <th className="px-6 py-4">Harga Modal</th>
-                <th className="px-6 py-4">Harga Jual</th>
-                <th className="px-6 py-4 text-center">Stok</th>
-                <th className="px-6 py-4 text-right">Aksi</th>
+              <tr>
+                <th>Judul</th>
+                <th className="num">Modal</th>
+                <th className="num">Jual</th>
+                <th className="num">Stok</th>
+                <th className="num">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <SkeletonRows cols={5} />
+              ) : stockPage.slice.map(item => (
+                <tr key={item.id}>
+                  <td>
+                    <p>{item.book_name}</p>
+                    {item.stock <= 5 && <span className="pill pill-warn">Menipis</span>}
                   </td>
-                </tr>
-              ) : filteredStock.map(item => (
-                <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <p className="font-bold text-gray-900">{item.book_name}</p>
-                    {item.stock <= 5 && (
-                      <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 font-bold uppercase mt-1">
-                        <TrendingDown className="w-3 h-3" /> Stok Menipis
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">Rp {item.price.toLocaleString()}</td>
-                  <td className="px-6 py-4">
-                    <p className="text-sm font-bold text-blue-600">Rp {(item.sell_price || item.price).toLocaleString()}</p>
-                    <p className="text-[10px] text-green-600 font-bold">
-                      +{((item.sell_price || item.price) - item.price).toLocaleString()} profit
-                    </p>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className={`px-3 py-1 rounded-full text-sm font-bold ${
-                      item.stock <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-blue-50 text-blue-700'
-                    }`}>
-                      {item.stock}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button 
-                        onClick={() => {
-                          setEditingItem(item);
-                          setBookName(item.book_name);
-                          setPrice(item.price.toString());
-                          setSellPrice((item.sell_price || item.price).toString());
-                          setStockCount(item.stock.toString());
-                          setIsModalVisible(true);
-                        }}
-                        className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                      >
-                        <Edit2 className="w-5 h-5" />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(item.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                  <td className="num">Rp {item.price.toLocaleString("id-ID")}</td>
+                  <td className="num">
+                    Rp {(item.sell_price || item.price).toLocaleString("id-ID")}
+                    <div className="page-note">
+                      sisa Rp {((item.sell_price || item.price) - item.price).toLocaleString("id-ID")}
                     </div>
+                  </td>
+                  <td className="num">{item.stock}</td>
+                  <td className="num">
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      aria-label={`Ubah ${item.book_name}`}
+                      onClick={() => {
+                        setEditingItem(item);
+                        setBookName(item.book_name);
+                        setPrice(item.price.toString());
+                        setSellPrice((item.sell_price || item.price).toString());
+                        setStockCount(item.stock.toString());
+                        setIsModalVisible(true);
+                      }}
+                    >
+                      <Edit2 aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-btn danger"
+                      aria-label={`Hapus ${item.book_name}`}
+                      onClick={() => handleDelete(item.id)}
+                    >
+                      <Trash2 aria-hidden="true" />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -257,44 +253,41 @@ const StockOpnameScreen: React.FC = () => {
         {/* Mobile List View */}
         <div className="md:hidden divide-y divide-gray-50">
           {loading ? (
-            <div className="px-6 py-12 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <div aria-hidden="true" style={{ display: "grid", gap: 12, padding: 16 }}>
+              {Array.from({ length: 6 }, (_, index) => (
+                <span key={index} className="skel" style={{ width: index % 2 ? "58%" : "82%" }} />
+              ))}
             </div>
-          ) : filteredStock.map(item => (
+          ) : stockPage.slice.map(item => (
             <div key={item.id} className="p-4 space-y-3">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <p className="font-bold text-gray-900">{item.book_name}</p>
-                  {item.stock <= 5 && (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 font-bold uppercase">
-                      <TrendingDown className="w-3 h-3" /> Stok Menipis
-                    </span>
-                  )}
+                  {item.stock <= 5 && <span className="pill pill-warn">Menipis</span>}
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                  item.stock <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-blue-50 text-blue-700'
-                }`}>
-                  {item.stock} pcs
-                </span>
+                <span className="num">{item.stock} eksemplar</span>
               </div>
               
               <div className="flex justify-between items-center text-sm">
                 <div>
-                  <p className="text-xs text-gray-400 uppercase font-bold">Harga Modal</p>
-                  <p className="text-gray-600">Rp {item.price.toLocaleString()}</p>
+                  <p className="k">Modal</p>
+                  <p className="num">Rp {item.price.toLocaleString("id-ID")}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-gray-400 uppercase font-bold">Harga Jual</p>
-                  <p className="font-bold text-blue-600">Rp {(item.sell_price || item.price).toLocaleString()}</p>
+                  <p className="k">Jual</p>
+                  <p className="num">Rp {(item.sell_price || item.price).toLocaleString("id-ID")}</p>
                 </div>
               </div>
 
-              <div className="pt-2 flex justify-between items-center border-t border-gray-50">
-                <p className="text-[10px] text-green-600 font-bold uppercase">
-                  Profit: +{((item.sell_price || item.price) - item.price).toLocaleString()}
+              <div className="pt-2 flex justify-between items-center">
+                <p className="num">
+                  Sisa Rp {((item.sell_price || item.price) - item.price).toLocaleString("id-ID")}
                 </p>
                 <div className="flex gap-2">
-                  <button 
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    aria-label={`Ubah ${item.book_name}`}
                     onClick={() => {
                       setEditingItem(item);
                       setBookName(item.book_name);
@@ -303,15 +296,16 @@ const StockOpnameScreen: React.FC = () => {
                       setStockCount(item.stock.toString());
                       setIsModalVisible(true);
                     }}
-                    className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                   >
-                    <Edit2 className="w-4 h-4" />
+                    <Edit2 aria-hidden="true" />
                   </button>
-                  <button 
+                  <button
+                    type="button"
+                    className="icon-btn danger"
+                    aria-label={`Hapus ${item.book_name}`}
                     onClick={() => handleDelete(item.id)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -320,89 +314,55 @@ const StockOpnameScreen: React.FC = () => {
         </div>
       </div>
 
+      {!loading && !loadError && (
+        <Pager
+          page={stockPage.page}
+          pages={stockPage.pages}
+          total={stockPage.total}
+          from={stockPage.from}
+          to={stockPage.to}
+          onPage={(next) => goToListPage(stockPage.setPage, next)}
+        />
+      )}
+
       {/* Modal */}
       {isModalVisible && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity">
-          <div className="bg-white rounded-t-[2.5rem] sm:rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh] animate-in slide-in-from-bottom duration-300">
-            <div className="p-4 sm:p-6 border-b border-gray-100 flex justify-between items-center shrink-0">
-              <div className="flex-1 text-center sm:text-left">
-                <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4 sm:hidden" />
-                <h2 className="text-xl font-bold text-gray-800">
-                  {editingItem ? "Edit Stok" : "Tambah Stok Baru"}
-                </h2>
-              </div>
-              <button 
-                onClick={() => setIsModalVisible(false)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors absolute right-4 top-4 sm:static"
-              >
-                <X className="w-6 h-6 text-gray-500" />
+        <div className="dialog-scrim" onClick={() => setIsModalVisible(false)}>
+          <div
+            className="dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="stock-dialog-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <h2 id="stock-dialog-title">{editingItem ? "Ubah stok" : "Tambah judul"}</h2>
+              <button type="button" className="icon-btn" aria-label="Tutup" onClick={() => setIsModalVisible(false)}>
+                <X aria-hidden="true" />
               </button>
             </div>
-
-            <form onSubmit={handleSave} className="p-4 sm:p-6 space-y-5 overflow-y-auto">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Judul Buku</label>
-                <input
-                  type="text"
-                  required
-                  value={bookName}
-                  onChange={(e) => setBookName(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-gray-700"
-                  placeholder="Contoh: Belajar React Web"
-                />
+            <form onSubmit={handleSave} className="mt-4 space-y-4">
+              <div>
+                <label htmlFor="book-name">Judul buku</label>
+                <input id="book-name" type="text" required value={bookName} onChange={(e) => setBookName(e.target.value)} />
               </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Harga Modal</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">Rp</span>
-                    <input
-                      type="number"
-                      required
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-black text-gray-700"
-                      placeholder="0"
-                    />
-                  </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="buy-price">Harga modal</label>
+                  <input id="buy-price" type="number" required value={price} onChange={(e) => setPrice(e.target.value)} />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Harga Jual</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">Rp</span>
-                    <input
-                      type="number"
-                      required
-                      value={sellPrice}
-                      onChange={(e) => setSellPrice(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-black text-blue-600"
-                      placeholder="0"
-                    />
-                  </div>
+                <div>
+                  <label htmlFor="sell-price">Harga jual</label>
+                  <input id="sell-price" type="number" required value={sellPrice} onChange={(e) => setSellPrice(e.target.value)} />
                 </div>
               </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Jumlah Stok</label>
-                <input
-                  type="number"
-                  required
-                  value={stockCount}
-                  onChange={(e) => setStockCount(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-black text-gray-700"
-                  placeholder="0"
-                />
+              <div>
+                <label htmlFor="stock-count">Jumlah stok</label>
+                <input id="stock-count" type="number" required value={stockCount} onChange={(e) => setStockCount(e.target.value)} />
               </div>
-              
-              <div className="pt-4 shrink-0">
-                <button
-                  type="submit"
-                  className="w-full py-4 bg-blue-600 text-white font-black uppercase tracking-widest rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 active:scale-[0.98]"
-                >
-                  {editingItem ? "Simpan Perubahan" : "Tambah Stok"}
-                </button>
-              </div>
+              <button type="submit" className="btn btn-primary">
+                {editingItem ? "Simpan perubahan" : "Tambah judul"}
+              </button>
             </form>
           </div>
         </div>

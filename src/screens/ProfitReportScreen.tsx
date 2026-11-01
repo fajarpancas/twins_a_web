@@ -4,16 +4,9 @@ import FirestoreService, {
   type StockOpnameDocument,
   type ExpenseDocument,
 } from "../services/FirestoreService";
-import {
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
-  Calendar,
-  Download,
-  RefreshCw,
-  BookOpen,
-} from "lucide-react";
+import { Download, RefreshCw } from "lucide-react";
 import * as XLSX from "xlsx";
+import { KpiSkeleton, Pager, TableSkeleton, goToListPage, usePage } from "../components/ListPage.tsx";
 
 interface ProfitItem {
   id: string;
@@ -29,6 +22,7 @@ interface ProfitItem {
 
 const ProfitReportScreen = () => {
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [profitItems, setProfitItems] = useState<ProfitItem[]>([]);
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
@@ -44,6 +38,7 @@ const ProfitReportScreen = () => {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const [ordersData, stockData, expensesData] = await Promise.all([
         FirestoreService.getCollection("orders"),
         FirestoreService.getCollection("stock_opname"),
@@ -119,6 +114,7 @@ const ProfitReportScreen = () => {
       });
     } catch (error) {
       console.error("Error fetching profit report:", error);
+      setLoadError("Laporan tidak terbaca.");
     } finally {
       setLoading(false);
     }
@@ -144,228 +140,139 @@ const ProfitReportScreen = () => {
     XLSX.writeFile(wb, "Laporan_Keuntungan.xlsx");
   };
 
+  const profitPage = usePage(profitItems, `${fromDate}|${toDate}`);
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-          Laporan Keuntungan
-        </h1>
-        <div className="flex w-full sm:w-auto space-x-2 sm:space-x-3">
-          <button
-            onClick={exportToExcel}
-            className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm sm:text-base"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <h1 className="page-title">Laba</h1>
+          <p className="page-note">
+            Sisa setelah modal buku dan pengeluaran, hanya dari pesanan terkirim.
+          </p>
+        </div>
+        <div className="actions">
+          <button type="button" onClick={exportToExcel} className="btn">
+            <Download aria-hidden="true" /> Export
           </button>
-          <button
-            onClick={fetchData}
-            className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm sm:text-base"
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
+          <button type="button" onClick={fetchData} className="btn">
+            <RefreshCw aria-hidden="true" /> Muat lagi
           </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-2 sm:mb-4">
-            <div className="p-1.5 sm:p-2 bg-blue-100 text-blue-600 rounded-lg">
-              <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <span className="text-[10px] sm:text-xs font-medium text-gray-400 text-right uppercase tracking-wider">
-              Revenue
-            </span>
-          </div>
-          <p className="text-lg sm:text-2xl font-bold text-gray-900">
-            Rp {summary.totalRevenue.toLocaleString()}
-          </p>
-        </div>
-        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-2 sm:mb-4">
-            <div className="p-1.5 sm:p-2 bg-red-100 text-red-600 rounded-lg">
-              <TrendingDown className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <span className="text-[10px] sm:text-xs font-medium text-gray-400 text-right uppercase tracking-wider">
-              Expenses
-            </span>
-          </div>
-          <p className="text-lg sm:text-2xl font-bold text-gray-900">
-            Rp {(summary.totalCost + summary.totalExpenses).toLocaleString()}
-          </p>
-        </div>
-        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-2 sm:mb-4">
-            <div className="p-1.5 sm:p-2 bg-green-100 text-green-600 rounded-lg">
-              <DollarSign className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <span className="text-[10px] sm:text-xs font-medium text-gray-400 text-right uppercase tracking-wider">
-              Net Profit
-            </span>
-          </div>
-          <p className="text-lg sm:text-2xl font-bold text-green-600">
-            Rp {summary.netProfit.toLocaleString()}
-          </p>
-        </div>
-        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-2 sm:mb-4">
-            <div className="p-1.5 sm:p-2 bg-purple-100 text-purple-600 rounded-lg">
-              <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <span className="text-[10px] sm:text-xs font-medium text-gray-400 text-right uppercase tracking-wider">
-              Books Sold
-            </span>
-          </div>
-          <p className="text-lg sm:text-2xl font-bold text-gray-900">
-            {summary.totalBooksSent} Pcs
-          </p>
-        </div>
-      </div>
-
-      <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
-        <div className="flex flex-col md:flex-row md:items-end gap-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Dari Tanggal
-            </label>
-            <div className="relative">
-              <Calendar className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="date"
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Sampai Tanggal
-            </label>
-            <div className="relative">
-              <Calendar className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="date"
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="w-full md:w-auto">
-            <button
-              onClick={() => {
-                setFromDate("");
-                setToDate("");
-              }}
-              className="w-full px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
-            >
-              Reset
-            </button>
-          </div>
         </div>
       </div>
 
       {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <KpiSkeleton cells={4} label="Memuat laba" quiet />
+      ) : !loadError && (
+        <div className="kpi cols-4" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
+          <div>
+            <p className="k">Omzet terkirim</p>
+            <p className="v num">Rp {summary.totalRevenue.toLocaleString("id-ID")}</p>
+          </div>
+          <div>
+            <p className="k">Modal dan pengeluaran</p>
+            <p className="v num">Rp {(summary.totalCost + summary.totalExpenses).toLocaleString("id-ID")}</p>
+          </div>
+          <div>
+            <p className="k">Sisa</p>
+            <p className={`v lead num${summary.netProfit < 0 ? " bad" : ""}`}>
+              Rp {summary.netProfit.toLocaleString("id-ID")}
+            </p>
+          </div>
+          <div>
+            <p className="k">Buku terkirim</p>
+            <p className="v num">{summary.totalBooksSent}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="date-row">
+        <label>
+          Dari tanggal
+          <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+        </label>
+        <label>
+          Sampai tanggal
+          <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        </label>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            setFromDate("");
+            setToDate("");
+          }}
+        >
+          Reset
+        </button>
+      </div>
+
+      {loadError && (
+        <div className="state state-error" role="alert">
+          <h2>{loadError}</h2>
+          <button type="button" className="btn" style={{ marginTop: 12 }} onClick={fetchData}>
+            Muat lagi
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <TableSkeleton cols={6} label="Memuat laba. Pesanan terkirim sedang dijumlah." />
+      ) : profitItems.length === 0 ? (
+        <div className="state">
+          <h2>Belum ada pesanan terkirim</h2>
+          <p>Sisa dihitung setelah status berubah jadi terkirim.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          {/* Desktop View */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                    Tanggal
-                  </th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                    Customer
-                  </th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                    Buku
-                  </th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-right">
-                    Jual
-                  </th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-right">
-                    Beli
-                  </th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-right">
-                    Profit
-                  </th>
+        <>
+        <Pager
+          id="list-top"
+          page={profitPage.page}
+          pages={profitPage.pages}
+          total={profitPage.total}
+          from={profitPage.from}
+          to={profitPage.to}
+          onPage={(next) => goToListPage(profitPage.setPage, next)}
+        />
+        <div className="panel" style={{ overflowX: "auto" }}>
+          <table className="ledger">
+            <thead>
+              <tr>
+                <th>Tanggal</th>
+                <th>Pemesan</th>
+                <th>Buku</th>
+                <th className="num">Jual</th>
+                <th className="num">Beli</th>
+                <th className="num">Sisa</th>
+              </tr>
+            </thead>
+            <tbody>
+              {profitPage.slice.map((item) => (
+                <tr key={item.id}>
+                  <td>{new Date(item.date).toLocaleDateString("id-ID")}</td>
+                  <td>{item.orderName}</td>
+                  <td>{item.itemName}</td>
+                  <td className="num">Rp {item.sellPrice.toLocaleString("id-ID")}</td>
+                  <td className="num">Rp {item.buyPrice.toLocaleString("id-ID")}</td>
+                  <td className={`num${item.profit < 0 ? " neg" : ""}`}>
+                    Rp {item.profit.toLocaleString("id-ID")}
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {profitItems.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="hover:bg-gray-50 transition-colors"
-                  >
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {new Date(item.date).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 font-medium text-gray-900">
-                      {item.orderName}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {item.itemName}
-                    </td>
-                    <td className="px-6 py-4 text-right text-gray-900">
-                      Rp {item.sellPrice.toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 text-right text-gray-500">
-                      Rp {item.buyPrice.toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 text-right font-bold text-green-600">
-                      Rp {item.profit.toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile View */}
-          <div className="md:hidden divide-y divide-gray-100">
-            {profitItems.map((item) => (
-              <div key={item.id} className="p-4 space-y-3">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-bold text-gray-900">{item.orderName}</p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(item.date).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <p className="font-bold text-green-600">
-                    +Rp {item.profit.toLocaleString()}
-                  </p>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                  <p className="text-sm font-medium text-gray-700">
-                    {item.itemName}
-                  </p>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">
-                      Harga Jual: Rp {item.sellPrice.toLocaleString()}
-                    </span>
-                    <span className="text-gray-500">
-                      Harga Beli: Rp {item.buyPrice.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {profitItems.length === 0 && (
-            <div className="px-6 py-12 text-center text-gray-500">
-              Belum ada data penjualan terkirim dalam periode ini
-            </div>
-          )}
+              ))}
+            </tbody>
+          </table>
         </div>
+        {profitPage.pages > 1 && (
+          <Pager
+            page={profitPage.page}
+            pages={profitPage.pages}
+            total={profitPage.total}
+            from={profitPage.from}
+            to={profitPage.to}
+            onPage={(next) => goToListPage(profitPage.setPage, next)}
+          />
+        )}
+        </>
       )}
     </div>
   );
