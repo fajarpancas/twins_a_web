@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useMemo } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { jsPDF } from "jspdf";
 import {
   Plus,
@@ -22,12 +31,101 @@ import BookChecklistModal from "../components/BookChecklistModal.tsx";
 import CsvImportModal from "../components/CsvImportModal.tsx";
 import {
   CardSkeleton,
+  ChartSkeleton,
   PAGE_SIZE,
   Pager,
   TallySkeleton,
   goToListPage,
   usePage,
 } from "../components/ListPage.tsx";
+
+type DailySale = {
+  label: string;
+  total: number;
+  count: number;
+};
+
+const dayKey = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+const orderSale = (order: OrderDocument) =>
+  (order.orders?.reduce((sum, item) => sum + (item.price || 0), 0) || 0) +
+  (order.is_packing_fee_applied ? 2000 : 0);
+
+const dailySalesOf = (orders: OrderDocument[]): DailySale[] => {
+  const buckets = new Map<string, DailySale>();
+  let first: Date | null = null;
+  let last: Date | null = null;
+
+  for (const order of orders) {
+    if (!order.created_at || order.is_hnr) continue;
+    const parsed = new Date(order.created_at);
+    if (Number.isNaN(parsed.getTime())) continue;
+    const day = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+    const key = dayKey(day);
+    const current = buckets.get(key) ?? {
+      label: day.toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "2-digit",
+      }),
+      total: 0,
+      count: 0,
+    };
+    current.total += orderSale(order);
+    current.count += 1;
+    buckets.set(key, current);
+    if (!first || day < first) first = day;
+    if (!last || day > last) last = day;
+  }
+
+  if (!first || !last) return [];
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (last < today) last = today;
+
+  const rows: DailySale[] = [];
+  for (const cursor = new Date(first); cursor <= last; cursor.setDate(cursor.getDate() + 1)) {
+    rows.push(
+      buckets.get(dayKey(cursor)) ?? {
+        label: cursor.toLocaleDateString("id-ID", {
+          day: "numeric",
+          month: "short",
+          year: "2-digit",
+        }),
+        total: 0,
+        count: 0,
+      },
+    );
+  }
+  return rows;
+};
+
+const SalesTooltip = ({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: ReadonlyArray<{ payload?: DailySale }>;
+}) => {
+  const row = payload?.[0]?.payload;
+  if (!active || !row) return null;
+  return (
+    <div className="sales-tip">
+      <p>{row.label}</p>
+      <strong className="num">Rp {row.total.toLocaleString("id-ID")}</strong>
+      <p>{row.count} pesanan</p>
+    </div>
+  );
+};
+
+const rupiahTick = (value: number) =>
+  value >= 1_000_000
+    ? `${Math.round(value / 1_000_000)}jt`
+    : value >= 1_000
+      ? `${Math.round(value / 1_000)}rb`
+      : String(value);
 
 const ItemListScreen: React.FC = () => {
   const [orders, setOrders] = useState<OrderDocument[]>([]);
@@ -435,6 +533,9 @@ const ItemListScreen: React.FC = () => {
 
   const stillOnBench = tally.pending + tally.packing;
 
+  const dailySales = useMemo(() => dailySalesOf(orders), [orders]);
+  const allTimeSales = dailySales.reduce((sum, day) => sum + day.total, 0);
+
   return (
     <div className="page">
       <div className="page-head">
@@ -524,6 +625,60 @@ const ItemListScreen: React.FC = () => {
           </button>
         </div>
       </div>
+
+      <section className="panel chart-card sales-chart" aria-label="Penjualan harian seluruh waktu">
+        {loading ? (
+          <ChartSkeleton />
+        ) : dailySales.length === 0 ? (
+          <div className="state">
+            <h2>Belum ada penjualan</h2>
+            <p>Grafik terisi setelah ada pesanan bertanggal.</p>
+          </div>
+        ) : (
+          <>
+            <header className="sales-chart-head">
+              <p>
+                Penjualan harian
+                <span>
+                  {dailySales[0].label} – {dailySales[dailySales.length - 1].label}
+                </span>
+              </p>
+              <strong className="num">Rp {allTimeSales.toLocaleString("id-ID")}</strong>
+            </header>
+            <div className="sales-plot">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={dailySales} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke="#e8eaec" vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 12, fill: "#5d5f60" }}
+                    tickLine={false}
+                    axisLine={false}
+                    interval="preserveStartEnd"
+                    minTickGap={28}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 12, fill: "#5d5f60" }}
+                    tickLine={false}
+                    axisLine={false}
+                    width={44}
+                    tickFormatter={rupiahTick}
+                  />
+                  <Tooltip content={<SalesTooltip />} />
+                  <Line
+                    type="linear"
+                    dataKey="total"
+                    stroke="#1b6c80"
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </>
+        )}
+      </section>
 
       {/* Filters */}
       {loading ? (
